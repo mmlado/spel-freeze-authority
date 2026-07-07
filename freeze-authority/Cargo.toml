@@ -17,6 +17,21 @@ exempt = [
   "admin_authority::admin_renounce",
 ]
 
+[[package.metadata.spel.inject]]
+wrapper = "require_not_frozen"
+
+  [[package.metadata.spel.inject.account]]
+  name = "freeze_config"
+  seed = { const = "freeze_config" }
+
+  [[package.metadata.spel.inject.account]]
+  name = "freeze_account"
+  seed = [{ const = "frozen" }, { account = "caller" }]
+
+  [[package.metadata.spel.inject.account]]
+  name = "caller"
+  signer = true
+
 [dependencies]
 borsh = { version = "1", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }

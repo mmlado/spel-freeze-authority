@@ -30,7 +30,7 @@ Bare module-level attribute placed on a `#[lez_program]` module. Triggers framew
 Module-level attribute with the explicit `manual` argument. Triggers framework discovery only; auto-wrap is skipped per the `skip = "manual"` entry in Cargo metadata. Consumer must annotate each instruction they want gated with `#[require_not_frozen]`. F3 conformance is the consumer's responsibility. Deviation from proposal: proposal's bare `#[freeze_authority]` was manual, `(auto)` was the opt-in; defaults are reversed here so the F3-conformant choice is the no-argument form. See ADR-0002.
 
 **`#[require_not_frozen]`**:
-Instruction-level opt-in for the manual mode (`#[freeze_authority(manual)]`). Injects the dual freeze gate before the handler body. In auto mode the framework hook applies the same `require_not_frozen` proc-macro to every non-exempt instruction — one implementation, two callers.
+Instruction-level opt-in for manual mode (`#[freeze_authority(manual)]`). Injects the dual freeze check (program-wide `freeze_config.is_frozen` AND the signer's per-account `freeze_account.is_frozen`, defaulting to `false` when the per-account PDA is missing) as a prologue at the top of the emitted handler by **re-expanding** on it — the framework leaves the attribute in place rather than stripping it (mechanism per admin-authority [ADR-0004](https://github.com/mmlado/spel-admin-authority/blob/main/docs/adr/0004-require-admin-injection-contract.md)). In auto mode the framework hook applies the same `require_not_frozen` proc-macro to every non-exempt instruction — one implementation, two callers.
 
 **`#[freeze_exempt]`**:
 Instruction-level opt-out for `#[freeze_authority(auto)]` mode. Suppresses the auto-wrap for one consumer instruction. No-op inside manual mode. Also used inside `freeze-authority/src/lib.rs` on six management instructions to self-declare them exempt — the five F3 carve-outs plus `freeze_initialize`, which runs before `freeze_config` exists so the gate has nothing to read. The framework hook reads `self_exempt_marker = "freeze_exempt"` from Cargo metadata and skips any fn carrying the attribute. Only `freeze_program` is gated.
@@ -66,7 +66,7 @@ Always the signer of the gated instruction. The proposal allowed an explicit `ac
 **Auto-wrap scope (strict F3)**:
 The framework's auto-wrap, when triggered by `#[freeze_authority]` bare or `#[freeze_authority(auto)]`, gates every instruction the program dispatches except:
 
-1. Library-defined freeze management instructions whose semantics require operability while frozen (the F3 carve-outs: `freeze_program_release`, `freeze_authority_transfer`, `freeze_authority_renounce`, `freeze_account`, `freeze_account_release`).
+1. Library-defined freeze management instructions whose semantics require operability while frozen or before init (the F3 carve-outs: `freeze_initialize`, `freeze_program_release`, `freeze_authority_transfer`, `freeze_authority_renounce`, `freeze_account`, `freeze_account_release`). Note `freeze_program` is NOT on this list — refreezing an already-frozen program is caught loudly by the prologue with `SpelError::Frozen`.
 2. admin-authority's three management instructions (`admin_initialize`, `admin_transfer`, `admin_renounce`).
 3. Consumer instructions explicitly marked `#[freeze_exempt]`.
 

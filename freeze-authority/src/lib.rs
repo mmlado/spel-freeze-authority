@@ -59,6 +59,21 @@ pub struct FreezeConfig {
     pub is_frozen: bool,
 }
 
+impl FreezeConfig {
+    /// Strict decode from raw bytes. Empty data -> NotInitialized.
+    pub fn decode(data: &[u8]) -> Result<Self, FreezeError> {
+        if data.is_empty() {
+            return Err(FreezeError::NotInitialized);
+        }
+        Self::try_from_slice(data).map_err(|_| FreezeError::DeserializationFailed)
+    }
+
+    /// Convenience: decode from an account's data field.
+    pub fn from_account(account: &AccountWithMetadata) -> Result<Self, FreezeError> {
+        Self::decode(&account.account.data)
+    }
+}
+
 /// Per-account freeze state.
 ///
 /// Stored in a per-target PDA at `(program_id, "frozen", target)`. Created
@@ -66,10 +81,23 @@ pub struct FreezeConfig {
 /// `freeze_account` / `freeze_account_release` calls. Per ADR-0008, PDAs
 /// persist for their lifetime (LEZ has no close primitive).
 #[account_type]
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq, Default)]
 pub struct FrozenAccountState {
     /// Whether the target `AccountId` is currently frozen for this program.
     pub is_frozen: bool,
+}
+
+impl FrozenAccountState {
+    /// Decode from account data, treating empty bytes as never-frozen.
+    /// Empty -> `Default::default()` (is_frozen=false) "reads-or-defaults"
+    /// semantic for lazily-created per-account PDAs.
+    /// Malformed non-empty bytes -> `FreezeError:DeserializationFailed`.
+    pub fn from_data_or_default(data: &[u8]) -> Result<Self, FreezeError> {
+        if data.is_empty() {
+            return Ok(Self::default());
+        }
+        borsh::from_slice(data).map_err(|_| FreezeError::DeserializationFailed)
+    }
 }
 
 /// Errors returned by `freeze-authority` library methods. Mapped to
@@ -104,6 +132,12 @@ pub enum FreezeError {
     /// `freeze_account_release(target)` called while target's PDA is absent
     /// or stores `false`.
     AccountNotFrozen,
+    /// Deserialization of PDA connected to account, per user freeze.
+    DeserializationFailed,
+    /// Program frozen
+    Frozen,
+    /// Account frozen
+    AccountFrozen,
 }
 
 impl core::fmt::Display for FreezeError {
@@ -124,6 +158,9 @@ impl core::fmt::Display for FreezeError {
             FreezeError::NotFrozen => write!(f, "program is not frozen"),
             FreezeError::AccountAlreadyFrozen => write!(f, "account is already frozen"),
             FreezeError::AccountNotFrozen => write!(f, "account is not frozen"),
+            FreezeError::DeserializationFailed => write!(f, "failed to decode freeze account state"),
+            FreezeError::Frozen => write!(f, "program is frozen"),
+            FreezeError::AccountFrozen => write!(f, "account is frozen"),
         }
     }
 }
@@ -311,6 +348,12 @@ mod tests {
             FreezeError::AccountNotFrozen.to_string(),
             "account is not frozen"
         );
+        assert_eq!(
+            FreezeError::DeserializationFailed.to_string(),
+            "failed to decode freeze account state"
+        );
+        assert_eq!(FreezeError::Frozen.to_string(), "program is frozen");
+        assert_eq!(FreezeError::AccountFrozen.to_string(), "account is frozen");
     }
 
     #[test]
@@ -333,5 +376,81 @@ mod tests {
             }
             other => panic!("expected Unauthorized, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn from_data_or_default_empty_yields_default_unfrozen() {
+        let data: [u8; 0]  = [];
+        let state = FrozenAccountState::from_data_or_default(&data)
+            .expect("empty bytes must decode cleanly to default");
+        assert!(!state.is_frozen);
+    }
+
+    #[test]
+    fn from_data_or_default_decodes_valid_frozen() {
+        let data: [u8; 1]  = [1; 1];
+        let state = FrozenAccountState::from_data_or_default(&data)
+            .expect("byte 1 must decode cleanly to true");
+        assert!(state.is_frozen);
+    }
+
+    #[test]
+    fn from_data_or_default_decodes_valid_unfrozen() {
+        let data: [u8; 1]  = [0; 1];
+        let state = FrozenAccountState::from_data_or_default(&data)
+            .expect("byte 0 must decode cleanly to false");
+        assert!(!state.is_frozen);
+    }
+
+    #[test]
+    fn from_data_or_default_malformed_errors() {
+        let data: [u8; 1]  = [9; 1];
+        let err = FrozenAccountState::from_data_or_default(&data)
+            .expect_err("malformed bytes must not decode cleanly");
+        assert_eq!(err, FreezeError::DeserializationFailed);
+    }
+
+    #[test]
+    fn freeze_config_decode_empty_returns_not_initialized() {
+        let account  = AccountWithMetadata { 
+            account: Account::default(),
+            is_authorized: false,
+            account_id: AccountId::new([0; 32]),
+        };
+        let err = FreezeConfig::from_account(&account).unwrap_err();
+        assert_eq!(err, FreezeError::NotInitialized);
+    }
+
+    #[test]
+    fn freeze_config_decode_valid_bytes_roundtrip() {
+        let cfg = FreezeConfig {
+            freeze_authority: AccountId::new([1; 32]),
+            is_frozen: false,
+        };
+        let encoded = borsh::to_vec(&cfg).unwrap();
+        let account = AccountWithMetadata {
+            account: Account {
+                data: encoded.try_into().unwrap(), 
+                ..Account::default()
+            },
+            is_authorized: false,
+            account_id: AccountId::new([0; 32]),
+        };
+        let decoded  = FreezeConfig::from_account(&account).unwrap();
+        assert_eq!(decoded, cfg);
+    }
+
+    #[test]
+    fn freeze_config_decode_malformed_errors() {
+        let account  = AccountWithMetadata {
+            account: Account { 
+                data: vec![0xff, 5].try_into().unwrap(),
+                ..Account::default() 
+            },
+            is_authorized: false,
+            account_id: AccountId::new([0; 32]),
+        };
+        let err  = FreezeConfig::from_account(&account).unwrap_err();
+        assert_eq!(err, FreezeError::DeserializationFailed);
     }
 }
