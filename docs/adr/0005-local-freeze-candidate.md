@@ -1,5 +1,7 @@
 # `FreezeCandidate` is defined locally, not imported from `admin-authority`
 
+**Status:** superseded by spel-authority [ADR-0001](https://github.com/mmlado/spel-authority/blob/main/docs/adr/0001-extract-shared-authority-primitives.md) (extract shared authority primitives). `FreezeCandidate` is now `pub type FreezeCandidate = authority::AuthorityCandidate`, not a local duplicate. Kept below for historical context — option 3's rejection reasoning ("cheap to do later") is exactly what happened.
+
 freeze-authority defines its own `FreezeCandidate` enum with the same shape and semantics as `admin_authority::AdminCandidate`:
 
 ```rust

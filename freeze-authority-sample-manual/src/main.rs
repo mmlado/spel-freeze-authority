@@ -1,5 +1,9 @@
 use freeze_authority::require_not_frozen;
 use spel_framework::prelude::*;
+<<<<<<< HEAD
+=======
+use freeze_authority::{require_not_frozen};
+>>>>>>> e59357b (feat(m2): dual freeze gate + management ops + shared authority slot)
 
 #[lez_program]
 #[admin_authority]
