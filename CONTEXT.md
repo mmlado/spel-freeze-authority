@@ -13,15 +13,16 @@ The single `AccountId` stored in the `admin_config` PDA owned by the `admin-auth
 _See_: [admin-authority CONTEXT](https://github.com/mmlado/spel-admin-authority/blob/main/CONTEXT.md)
 
 **Freeze authority**:
-The single `AccountId` stored in the `freeze_config` PDA, authorized to flip the program-wide frozen state and the per-account frozen state. Set at `freeze_initialize`. Replaceable by the admin via `freeze_authority_transfer`. Vacatable via `freeze_authority_renounce`; the admin can repopulate the slot per ADR-0007.
-_Avoid_: pauser (ambiguous with LEZ vocabulary), freezer
+The single `AccountId` held in `FreezeConfig.slot` (a `authority::AuthoritySlot`), authorized to flip the program-wide frozen state and the per-account frozen state. Set at `freeze_initialize` (self-elected to the admin). Replaceable via `freeze_authority_transfer` (dual-path: admin or current freeze authority). Vacatable via `freeze_authority_renounce` (dual-path; recoverable by admin per ADR-0007, so not "permanent" — see below).
+_Avoid_: pauser (ambiguous with LEZ vocabulary), freezer, "set_freeze_authority" or "revoke_freeze_authority" (proposal names; renamed for verb-style consistency with admin-authority)
 
 **Freeze Config PDA**:
 The on-chain account that stores `FreezeConfig` state. Derived from `(program_id, "freeze_config")`. Created once via `freeze_initialize`; reinit rejected.
 _Avoid_: pause account, freeze account (overloaded with per-account freeze PDA)
 
 **`FreezeConfig`**:
-`{ freeze_authority: AccountId, is_frozen: bool }`. `freeze_authority == AccountId::default()` is the renounced sentinel — pattern-aligned with `admin-authority`'s `admin` field. Deviation from proposal line 53 (`Option<AccountId>`) for cross-library convention consistency. Fixed 33-byte Borsh encoding (32 AccountId + 1 bool). Admin authority is NOT stored here — it lives in `admin_config` under the `admin-authority` library, accessed via `AdminConfig::assert_admin`.
+`{ slot: authority::AuthoritySlot, is_frozen: bool }`. The freeze authority `AccountId` lives inside `slot.holder()`, not as a direct field — `slot` wraps the shared `authority` crate's single-holder primitive. `slot.is_renounced()` is the renounced sentinel check — pattern-aligned with `admin-authority`'s `AdminConfig`, which embeds the same `AuthoritySlot`. Deviation from proposal line 53 (`Option<AccountId>`) for cross-library convention consistency. Fixed 33-byte Borsh encoding (32 AccountId + 1 bool) is preserved since `AuthoritySlot`'s only field borsh-encodes identically to a bare `AccountId`. Admin authority is NOT stored here — it lives in `admin_config` under the `admin-authority` library, accessed via `AdminConfig::assert_admin`.
+_See_: [authority CONTEXT](https://github.com/mmlado/spel-authority/blob/main/CONTEXT.md) (AuthoritySlot, Renounced sentinel)
 
 **`#[freeze_authority]` (auto, default)**:
 Bare module-level attribute placed on a `#[lez_program]` module. Triggers framework discovery of the management instructions via `[package.metadata.spel.extension_attr]` AND triggers the auto-wrap framework hook (`[package.metadata.spel.wrap_instructions]`), which prepends the dual freeze gate (program-wide + signer's per-account PDA) to every dispatched instruction except those declared exempt. F3 and F6 conformance automatic.
@@ -50,14 +51,10 @@ Source lives in [freeze-authority/src/lib.rs](https://github.com/mmlado/spel-fre
 _Avoid_: `set_frozen`, `set_freeze_authority`, `revoke_freeze_authority`, `freeze_account(_, bool)`.
 
 **`FreezeCandidate`**:
-Transfer-time argument describing the intended new freeze authority. `Signer` carries no data; validation checks `new_freeze_account.is_authorized` (co-signed the tx). `Pda { program_id, seed }` validated by deriving the address via `AccountId::for_public_pda` and confirming the PDA is initialized. Distinct from `FreezeConfig.freeze_authority`, which stores only the resolved `AccountId`. Always paired with a `new_freeze_account: AccountWithMetadata` parameter; `FreezeCandidate` is the claim, `AccountWithMetadata` is the chain-state evidence.
+`pub type FreezeCandidate = authority::AuthorityCandidate` — a type alias onto the shared `authority` crate's primitive, not a local duplicate. `Signer` carries no data; validation checks `new_freeze_account.is_authorized` (co-signed the tx). `Pda { program_id, seed }` validated by deriving the address via `AccountId::for_public_pda` and confirming the PDA is initialized. Distinct from `FreezeConfig.slot.holder()`, which stores only the resolved `AccountId`. Always paired with a `new_freeze_account: AccountWithMetadata` parameter; `FreezeCandidate` is the claim, `AccountWithMetadata` is the chain-state evidence.
 
-Local duplicate of `admin_authority::AdminCandidate` — same shape, same semantics. Reasons for duplication over import:
-
-- Local naming clarity in the IDL: `freeze_authority_transfer`'s candidate parameter shows `FreezeCandidate`, not `AdminCandidate`.
-- Zero coupling to admin-authority's type evolution.
-
-Acceptable cost: ~30 lines of duplicated validation logic. ADR-0004 candidate.
+Superseded: this used to be a local duplicate of `admin_authority::AdminCandidate` (same shape, same semantics, kept separate for IDL naming clarity and zero coupling to admin-authority's type evolution). Both admin-authority and freeze-authority now alias the same shared type from the `authority` crate instead, so there is no duplicated validation logic to maintain — IDL naming clarity is preserved by the type alias (`freeze_authority_transfer`'s candidate parameter still shows `FreezeCandidate`), and coupling is to `authority`, a policy-free crate neither library owns state in.
+_See_: [authority CONTEXT](https://github.com/mmlado/spel-authority/blob/main/CONTEXT.md)
 _Avoid_: using a bare `AccountId` arg for transfer (cannot validate key ownership or PDA existence).
 
 **Per-account freeze target**:
@@ -81,7 +78,7 @@ Derived from `(program_id, "frozen", target)`. Stores `{ is_frozen: bool }`. `fr
 Persistent PDAs accumulate at O(N_ever_frozen). LEZ has no rent (balance-free storage per the M1 rent investigation), so this is a non-issue. Existence-only encoding was considered and rejected — LEZ has no close primitive and reinit after close is structurally impossible per validate_execution rule 7, so existence-only would have no F7 (release) path. Bool-inside is the only viable encoding.
 
 **`freeze_initialize` signature**:
-`freeze_initialize(caller, new_freeze_account, new_freeze_authority: FreezeCandidate)`. Includes `#[account(init, pda = literal("freeze_config"))]` to create the freeze config PDA, `#[account(pda = literal("admin_config"))]` to enforce admin is already initialized, and `#[account(signer)] caller` validated against `admin_config.admin` via admin-authority's `#[require_admin]` gate per ADR-0006. Deviation from proposal line 53 (`freeze_initialize(admin, freeze_authority)`): drops the `admin` parameter because admin-authority owns the admin state, and adds admin signature requirement (proposal didn't specify caller). The admin signature closes the front-running window between `admin_initialize` and `freeze_initialize`. Recommended deployment: single tx with `admin_initialize` followed by `freeze_initialize` immediately after program deployment.
+`freeze_initialize(admin_config, freeze_config, caller)`. Includes `#[account(pda = literal("admin_config"))]` to enforce admin is already initialized, `#[account(init, pda = literal("freeze_config"))]` to create the freeze config PDA, and `#[account(signer)] caller` validated against `admin_config.admin` per the `#[require_admin]` gate. The initial freeze authority is the admin themselves (self-elected via `FreezeCandidate::Signer` against `caller`) — admin can hand off to a distinct account later via `freeze_authority_transfer`. Deviation from proposal line 53 (`freeze_initialize(admin, freeze_authority)`): drops the `admin` parameter because admin-authority owns the admin state, and drops the explicit `new_freeze_authority` parameter to avoid a duplicate signer/account slot at init (admin_signer would be one signer, new_freeze_account would be a second). The admin signature closes the front-running window between `admin_initialize` and `freeze_initialize`. Recommended deployment: single tx with `admin_initialize` followed by `freeze_initialize` immediately after program deployment.
 
 **`freeze_authority_renounce` authorization**:
 Either the current admin (per RFP F5) or the current freeze_authority self-renouncing. Both signature paths accepted, in the same handler, via OR check. Reads both `admin_config` and `freeze_config` to verify. Deviation from proposal line 56 ("Admin only") for operational safety per ADR-0004. Additive auth path, RFP F5 still satisfied.

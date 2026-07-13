@@ -6,36 +6,38 @@ For state transitions and lifecycle rules, see [authority-lifecycle.md](authorit
 
 ## `FreezeConfig`
 
-One per program. Stores the freeze authority slot and the program-wide frozen flag.
+One per program. Composes the shared `authority::AuthoritySlot` (which holds the freeze authority identity) with the program-wide frozen flag.
 
 ```rust
 #[account_type]
 #[derive(BorshSerialize, BorshDeserialize)]
 pub struct FreezeConfig {
-    pub freeze_authority: AccountId,
+    slot: authority::AuthoritySlot,   // { holder: AccountId }
     pub is_frozen: bool,
 }
 ```
 
-**PDA derivation:** `(program_id, "freeze_config")`. Single-seed PDA. Address is deterministic per program — no per-instance instances. Reinit rejected after first `freeze_initialize` call per LEZ's `validate_execution` rule.
+The freeze authority `AccountId` lives inside `slot.holder()`, not as a direct field. `AuthoritySlot` is the shared single-holder primitive from `spel-authority`; the same type is embedded in `admin-authority`'s `AdminConfig`.
 
-**Encoding:** fixed 33 bytes — 32-byte `AccountId` + 1-byte bool. Borsh layout is direct: no length prefix, no discriminator, no padding. The fixed encoding lets the framework hook reason about tx size analytically.
+**PDA derivation:** `(program_id, "freeze_config")`. Single-seed PDA. Address is deterministic per program. Reinit rejected after first `freeze_initialize` call per LEZ's `validate_execution` rule.
 
-**Sentinel for renounced:** `freeze_authority == AccountId::default()` (all zeros) means the slot is Renounced. Pattern-aligned with `admin-authority`'s `admin` field. Per ADR-0007, Renounced is recoverable by admin via `freeze_authority_transfer`.
+**Encoding:** fixed 33 bytes — `AuthoritySlot` borsh-encodes to a single 32-byte `AccountId` (its only field), followed by the 1-byte bool. Borsh layout is direct: no length prefix, no discriminator, no padding. The composition is zero-cost on the wire; on-chain data shape matches a hand-rolled `{ AccountId, bool }` byte-for-byte.
+
+**Sentinel for renounced:** `slot.is_renounced()` returns `true` when `slot.holder() == AccountId::default()`. Pattern-aligned with `admin-authority`'s `AdminConfig`, which uses the same slot primitive. Per ADR-0007, Renounced is recoverable by admin via `freeze_authority_transfer`.
 
 ### State detection
 
-| State         | `account.data` | `freeze_authority`     |
-| ------------- | -------------- | ---------------------- |
-| Uninitialized | empty          | n/a (decode fails)     |
-| Initialized   | non-empty      | non-default            |
-| Renounced     | non-empty      | `AccountId::default()` |
+| State         | `account.data` | `slot`                                       |
+| ------------- | -------------- | -------------------------------------------- |
+| Uninitialized | empty          | n/a (decode fails)                           |
+| Initialized   | non-empty      | `slot.holder()` is a non-default `AccountId` |
+| Renounced     | non-empty      | `slot.is_renounced() == true`                |
 
 Discrimination order in `FreezeConfig::from_account`:
 
 1. If `account.data.is_empty()` → `FreezeError::NotInitialized`.
-2. If decode succeeds and `freeze_authority == AccountId::default()` → state is Renounced. Caller chooses how to handle (`assert_freeze_authority` returns `FreezeError::Renounced`; transfer accepts and overwrites).
-3. Otherwise compare `signer.account_id` to `freeze_authority` for authorization.
+2. If decode succeeds and `slot.is_renounced()` → state is Renounced. Callers choose how to handle (`assert` returns `FreezeError::Renounced`; transfer accepts and overwrites).
+3. Otherwise `slot.assert(signer)` compares `signer.account_id` to `slot.holder()` for authorization.
 
 ## `FrozenAccountState`
 
@@ -67,15 +69,15 @@ The planned gate prologue (M2 implements the macro body):
 
 ```rust
 let __cfg = ::freeze_authority::FreezeConfig::from_account(&freeze_config)?;
-if __cfg.is_frozen { return Err(FreezeError::AlreadyFrozen.into()); }
+if __cfg.is_frozen { return Err(FreezeError::Frozen.into()); }
 
-if !__frozen_pda.account.data.is_empty() {
-    let __fa = <FrozenAccountState as BorshDeserialize>::try_from_slice(&__frozen_pda.account.data)?;
-    if __fa.is_frozen { return Err(FreezeError::AccountAlreadyFrozen.into()); }
-}
+let __fa = ::freeze_authority::FrozenAccountState::from_data_or_default(
+    &freeze_account.account.data,
+)?;
+if __fa.is_frozen { return Err(FreezeError::AccountFrozen.into()); }
 ```
 
-Empty data branch passes silently — the most common path for a healthy program (most signers are never frozen). Decoding only runs when the PDA actually exists.
+Distinct variants for gate rejection (`Frozen` / `AccountFrozen`) versus management-op no-op errors (`AlreadyFrozen` / `AccountAlreadyFrozen`). The lenient decoder `from_data_or_default` treats empty bytes as the never-frozen default and errors only on malformed non-empty bytes — the common path for a healthy program stays fast.
 
 ## Borsh encoding summary
 
@@ -92,31 +94,35 @@ Library-level error enum, mapped to `SpelError::Unauthorized` at the SPEL bounda
 
 ```rust
 pub enum FreezeError {
-    NotInitialized,          // empty data in freeze_config
-    AlreadyInitialized,      // reinit attempt
-    InvalidCandidate,        // FreezeCandidate validation failed
-    UndeployedPda,           // PDA candidate not yet deployed
-    CandidateMismatch,       // PDA address doesn't match derivation
-    NotFreezeAuthority,      // signer != freeze_config.freeze_authority
-    NotAdmin,                // signer != admin_config.admin (for admin-only paths)
-    MissingSignature,        // is_authorized == false
-    Renounced,               // freeze_authority slot is vacant
-    AlreadyFrozen,           // freeze_program when is_frozen already true
-    NotFrozen,               // freeze_program_release when is_frozen already false
-    AccountAlreadyFrozen,    // freeze_account when target's PDA already true
-    AccountNotFrozen,        // freeze_account_release when target's PDA absent or false
+    NotInitialized,             // empty data in freeze_config
+    AlreadyInitialized,         // reinit attempt
+    DecodingFailed,             // Borsh decode failure on non-empty data
+    EncodingFailed,             // Borsh encode failure
+    AccountDataTooLarge,        // write_to exceeded the account's data cap
+    InvalidCandidate,           // FreezeCandidate validation failed
+    UndeployedPda,              // PDA candidate not yet deployed
+    CandidateMismatch,          // PDA address doesn't match derivation
+    NotFreezeAuthority,         // signer != slot.holder()
+    NotAdmin,                   // signer != admin_config.admin
+    NotAdminOrFreezeAuthority,  // dual-path auth: neither matched
+    MissingSignature,           // is_authorized == false
+    Renounced,                  // slot.is_renounced() == true
+    AlreadyFrozen,              // freeze_program when is_frozen already true
+    NotFrozen,                  // freeze_program_release when is_frozen already false
+    AccountAlreadyFrozen,       // freeze_account when target's PDA already true
+    AccountNotFrozen,           // freeze_account_release when target's PDA absent or false
+    Frozen,                     // gate rejection: program is currently frozen
+    AccountFrozen,              // gate rejection: caller's per-account PDA is frozen
 }
 
 impl From<FreezeError> for SpelError {
     fn from(e: FreezeError) -> Self {
-        SpelError::Unauthorized {
-            message: e.to_string(),
-        }
+        SpelError::Unauthorized { message: e.to_string() }
     }
 }
 ```
 
-Mapping is uniform (`Unauthorized`) at the SPEL boundary so consumer error handling stays simple. The `Display` string carries the granular reason into the message field; the library-level enum keeps it available for tests and handler-side branching.
+Every variant maps to `SpelError::Unauthorized` at the SPEL boundary, with the granular reason preserved in the message string. The library-level enum is what tests and handler-side branching consume. Two families of "frozen" variants intentionally coexist: `Frozen` / `AccountFrozen` fire from the auto-wrap prologue when a gated instruction is called on a frozen program or a frozen account, while `AlreadyFrozen` / `AccountAlreadyFrozen` fire when management ops try to no-op transition an already-in-state value. Distinct errors let callers distinguish "your call was blocked" from "you tried to redo a completed transition".
 
 ## PDA address summary
 
@@ -132,6 +138,6 @@ freeze-authority creates the latter two via its management instructions. admin-a
 
 - [authority-lifecycle.md](authority-lifecycle.md) — state machines and transition rules over these accounts.
 - [ADR-0001 Hard dep on admin-authority](adr/0001-hard-dep-on-admin-authority.md) — why `FreezeConfig` doesn't carry admin fields.
-- [ADR-0005 Local FreezeCandidate](adr/0005-local-freeze-candidate.md) — `FreezeCandidate` type used to validate new authorities.
+- [ADR-0005 Local FreezeCandidate](adr/0005-local-freeze-candidate.md) — superseded by the spel-authority extraction; `FreezeCandidate` is now `pub type FreezeCandidate = authority::AuthorityCandidate`.
 - [ADR-0006 freeze_initialize requires admin signature](adr/0006-freeze-initialize-requires-admin-signature.md) — why `freeze_initialize` reads `admin_config`.
 - [ADR-0007 Renounce vacates, not terminal](adr/0007-renounce-vacates-not-terminal.md) — Renounced state semantics.
