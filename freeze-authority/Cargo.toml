@@ -22,5 +22,5 @@ exempt = [
 borsh = { version = "1", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 spel-framework = { git = "https://github.com/mmlado/spel.git", branch = "feat/wrap_instructions" }
-admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", branch = "main" }
+admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", branch = "m1" }
 freeze-authority-macros = { path = "../freeze-authority-macros" }

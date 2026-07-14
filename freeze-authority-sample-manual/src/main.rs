@@ -16,7 +16,6 @@ mod freeze_authority_sample_manual {
     #[require_not_frozen]
     pub fn update_value(
         #[account(mut, pda = literal("program_config"))] mut _config: AccountWithMetadata,
-        #[account(signer)] _caller: AccountWithMetadata,
         _new_value: u64,
     ) -> SpelResult {
         todo!()
@@ -31,7 +30,6 @@ mod freeze_authority_sample_manual {
     #[instruction]
     pub fn read_value(
         #[account(pda = literal("program_config"))] _config: AccountWithMetadata,
-        #[account(signer)] _caller: AccountWithMetadata,
     ) -> SpelResult {
         todo!()
     }
