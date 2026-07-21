@@ -8,7 +8,9 @@ use admin_authority::require_admin;
 use borsh::{BorshDeserialize, BorshSerialize};
 use spel_framework::prelude::*;
 
-pub use freeze_authority_macros::{freeze_authority, freeze_exempt, instruction, require_not_frozen};
+pub use freeze_authority_macros::{
+    freeze_authority, freeze_exempt, instruction, require_not_frozen,
+};
 
 extern crate self as freeze_authority;
 
@@ -17,7 +19,16 @@ extern crate self as freeze_authority;
 /// Paired with `new_freeze_account: AccountWithMetadata` at every transfer.
 /// `FreezeCandidate` is the claim, `AccountWithMetadata` is the chain-state
 /// evidence. One without the other provides no security guarantee.
-#[derive(BorshSerialize, BorshDeserialize, serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    serde::Serialize,
+    serde::Deserialize,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+)]
 pub enum FreezeCandidate {
     /// New freeze authority is a keyholder. Validated by checking
     /// `new_freeze_account.is_authorized == true` (co-signed the tx).
@@ -25,7 +36,10 @@ pub enum FreezeCandidate {
     /// New freeze authority is a program-owned PDA. Validated by deriving
     /// the address from `(program_id, seed)`, matching it against
     /// `new_freeze_account`, and confirming the PDA is initialized.
-    Pda { program_id: AccountId, seed: [u8; 32] },
+    Pda {
+        program_id: AccountId,
+        seed: [u8; 32],
+    },
 }
 
 /// On-chain freeze authority state for a single program.
@@ -95,26 +109,30 @@ pub enum FreezeError {
 impl core::fmt::Display for FreezeError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            FreezeError::NotInitialized       => write!(f, "freeze authority not initialized"),
-            FreezeError::AlreadyInitialized   => write!(f, "freeze authority already initialized"),
-            FreezeError::InvalidCandidate     => write!(f, "invalid freeze candidate"),
-            FreezeError::UndeployedPda        => write!(f, "candidate PDA is not deployed"),
-            FreezeError::CandidateMismatch    => write!(f, "candidate address mismatch"),
-            FreezeError::NotFreezeAuthority   => write!(f, "signer is not the current freeze authority"),
-            FreezeError::NotAdmin             => write!(f, "signer is not the current admin"),
-            FreezeError::MissingSignature     => write!(f, "freeze signature missing"),
-            FreezeError::Renounced            => write!(f, "freeze authority renounced"),
-            FreezeError::AlreadyFrozen        => write!(f, "program is already frozen"),
-            FreezeError::NotFrozen            => write!(f, "program is not frozen"),
+            FreezeError::NotInitialized => write!(f, "freeze authority not initialized"),
+            FreezeError::AlreadyInitialized => write!(f, "freeze authority already initialized"),
+            FreezeError::InvalidCandidate => write!(f, "invalid freeze candidate"),
+            FreezeError::UndeployedPda => write!(f, "candidate PDA is not deployed"),
+            FreezeError::CandidateMismatch => write!(f, "candidate address mismatch"),
+            FreezeError::NotFreezeAuthority => {
+                write!(f, "signer is not the current freeze authority")
+            }
+            FreezeError::NotAdmin => write!(f, "signer is not the current admin"),
+            FreezeError::MissingSignature => write!(f, "freeze signature missing"),
+            FreezeError::Renounced => write!(f, "freeze authority renounced"),
+            FreezeError::AlreadyFrozen => write!(f, "program is already frozen"),
+            FreezeError::NotFrozen => write!(f, "program is not frozen"),
             FreezeError::AccountAlreadyFrozen => write!(f, "account is already frozen"),
-            FreezeError::AccountNotFrozen     => write!(f, "account is not frozen"),
+            FreezeError::AccountNotFrozen => write!(f, "account is not frozen"),
         }
     }
 }
 
 impl From<FreezeError> for SpelError {
     fn from(e: FreezeError) -> Self {
-        SpelError::Unauthorized { message: e.to_string() }
+        SpelError::Unauthorized {
+            message: e.to_string(),
+        }
     }
 }
 
@@ -244,19 +262,55 @@ mod tests {
 
     #[test]
     fn freeze_error_display_strings() {
-        assert_eq!(FreezeError::NotInitialized.to_string(),         "freeze authority not initialized");
-        assert_eq!(FreezeError::AlreadyInitialized.to_string(),     "freeze authority already initialized");
-        assert_eq!(FreezeError::InvalidCandidate.to_string(),       "invalid freeze candidate");
-        assert_eq!(FreezeError::UndeployedPda .to_string(),         "candidate PDA is not deployed");
-        assert_eq!(FreezeError::CandidateMismatch.to_string(),      "candidate address mismatch");
-        assert_eq!(FreezeError::NotFreezeAuthority.to_string(),     "signer is not the current freeze authority");
-        assert_eq!(FreezeError::NotAdmin.to_string(),               "signer is not the current admin");
-        assert_eq!(FreezeError::MissingSignature.to_string(),       "freeze signature missing");
-        assert_eq!(FreezeError::Renounced.to_string(),              "freeze authority renounced");
-        assert_eq!(FreezeError::AlreadyFrozen.to_string(),          "program is already frozen");
-        assert_eq!(FreezeError::NotFrozen.to_string(),              "program is not frozen");
-        assert_eq!(FreezeError::AccountAlreadyFrozen.to_string(),   "account is already frozen");
-        assert_eq!(FreezeError::AccountNotFrozen.to_string(),       "account is not frozen");
+        assert_eq!(
+            FreezeError::NotInitialized.to_string(),
+            "freeze authority not initialized"
+        );
+        assert_eq!(
+            FreezeError::AlreadyInitialized.to_string(),
+            "freeze authority already initialized"
+        );
+        assert_eq!(
+            FreezeError::InvalidCandidate.to_string(),
+            "invalid freeze candidate"
+        );
+        assert_eq!(
+            FreezeError::UndeployedPda.to_string(),
+            "candidate PDA is not deployed"
+        );
+        assert_eq!(
+            FreezeError::CandidateMismatch.to_string(),
+            "candidate address mismatch"
+        );
+        assert_eq!(
+            FreezeError::NotFreezeAuthority.to_string(),
+            "signer is not the current freeze authority"
+        );
+        assert_eq!(
+            FreezeError::NotAdmin.to_string(),
+            "signer is not the current admin"
+        );
+        assert_eq!(
+            FreezeError::MissingSignature.to_string(),
+            "freeze signature missing"
+        );
+        assert_eq!(
+            FreezeError::Renounced.to_string(),
+            "freeze authority renounced"
+        );
+        assert_eq!(
+            FreezeError::AlreadyFrozen.to_string(),
+            "program is already frozen"
+        );
+        assert_eq!(FreezeError::NotFrozen.to_string(), "program is not frozen");
+        assert_eq!(
+            FreezeError::AccountAlreadyFrozen.to_string(),
+            "account is already frozen"
+        );
+        assert_eq!(
+            FreezeError::AccountNotFrozen.to_string(),
+            "account is not frozen"
+        );
     }
 
     #[test]

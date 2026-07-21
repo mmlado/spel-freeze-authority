@@ -1,13 +1,9 @@
 use spel_framework::prelude::*;
-use admin_authority::admin_authority;
-use freeze_authority::{freeze_authority, require_not_frozen};
 
 #[lez_program]
 #[admin_authority]
 #[freeze_authority(manual)]
 mod freeze_authority_sample_manual {
-    use super::*;
-
     /// A representative gated instruction. Manual mode means the
     /// framework does NOT auto-prepend `#[require_not_frozen]` — the
     /// consumer applies it explicitly here. When the program is frozen

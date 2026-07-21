@@ -1,13 +1,9 @@
 use spel_framework::prelude::*;
-use admin_authority::admin_authority;
-use freeze_authority::{freeze_authority, freeze_exempt};
 
 #[lez_program]
 #[admin_authority]
 #[freeze_authority]
 mod freeze_authority_sample {
-    use super::*;
-
     /// A representative gated instruction. Auto-mode means the framework
     /// prepends `#[require_not_frozen]` before this handler is generated;
     /// when the program is frozen the gate prologue rejects the call.
