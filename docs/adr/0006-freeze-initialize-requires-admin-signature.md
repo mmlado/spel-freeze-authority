@@ -22,8 +22,8 @@ Rejected because making the security guarantee depend on optional fields is conf
 
 ## Consequences
 
-- `freeze_initialize` signature gains `#[account(signer)] admin_signer: AccountWithMetadata`.
-- Handler validates `AdminConfig::assert_admin(&admin_signer)` before doing anything else.
+- `freeze_initialize` signature gains `#[account(signer)] caller: AccountWithMetadata`.
+- admin-authority's `#[require_admin]` gate validates `caller` against `admin_config.admin` before the handler body runs.
 - Edge case: admin must exist AND not be renounced when `freeze_initialize` runs. If admin has already been renounced, freeze can never be initialized for that program. Acceptable — if admin is gone, security primitives shouldn't be settable anyway.
 - The recommended deployment pattern remains a single tx with `admin_initialize` followed by `freeze_initialize`. With this ADR, the freeze leg's safety no longer depends on the operator's discipline; the admin signature requirement enforces it.
 - Asymmetric with admin-authority's `admin_initialize`, which is open (anyone can call). Defensible because admin has no prerequisite authority; freeze has admin as a prerequisite, so requiring admin signature is consistent with the hard-dep architecture.

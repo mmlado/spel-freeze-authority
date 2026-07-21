@@ -54,18 +54,18 @@ The freeze authority slot governs both flags: the authority is the only role tha
 Uninitialized → Initialized
 ```
 
-**Inputs:** `admin_signer: AccountWithMetadata` (current admin, signing), `new_freeze_account: AccountWithMetadata` (claim subject), `new_freeze_authority: FreezeCandidate`.
+**Inputs:** `caller: AccountWithMetadata` (current admin, signing), `new_freeze_account: AccountWithMetadata` (claim subject), `new_freeze_authority: FreezeCandidate`.
 
 **Account constraints:** `freeze_config` is `#[account(init, pda = literal("freeze_config"))]`; `admin_config` is `#[account(pda = literal("admin_config"))]` (must already exist — enforces the hard-dep precondition from ADR-0001).
 
-**Authorization:** the admin signature is required per ADR-0006. The handler validates `AdminConfig::assert_admin(&admin_signer)` against `admin_config.admin` before doing anything else. Closes the front-running window between `admin_initialize` and `freeze_initialize` — without this requirement, any third party could win the race and become the freeze authority.
+**Authorization:** the admin signature is required per ADR-0006. admin-authority's `#[require_admin]` gate validates `caller` against `admin_config.admin` before the handler body runs. Closes the front-running window between `admin_initialize` and `freeze_initialize` — without this requirement, any third party could win the race and become the freeze authority.
 
 **Resolution:**
 
 - `FreezeCandidate::Signer`: `freeze_authority` is set to `new_freeze_account.account_id`. The new authority must co-sign the transaction (`is_authorized == true`) to accept the role.
 - `FreezeCandidate::Pda { program_id, seed }`: the library derives the expected PDA address, confirms it matches `new_freeze_account.account_id`, and confirms the PDA is already deployed.
 
-**Validations:** `admin_config` exists and is not Renounced. `admin_signer` matches the current admin. The `freeze_config` PDA is freshly initialized (enforced by `#[account(init)]`). The resolved authority is not `AccountId::default()`.
+**Validations:** `admin_config` exists and is not Renounced. `caller` matches the current admin. The `freeze_config` PDA is freshly initialized (enforced by `#[account(init)]`). The resolved authority is not `AccountId::default()`.
 
 **Initial values written:** `freeze_authority = <resolved>`, `is_frozen = false`.
 
@@ -95,7 +95,7 @@ Initialized → Initialized (new authority)
 Initialized → Renounced
 ```
 
-**Inputs:** `signer: AccountWithMetadata` — must match EITHER the current admin OR the current freeze_authority. Dual-path per ADR-0004.
+**Inputs:** `caller: AccountWithMetadata` — must match EITHER the current admin OR the current freeze_authority. Dual-path per ADR-0004. Note: the m1 declaration carries `#[require_admin]`, which gates on admin only; reconciling the gate with the dual-path policy (body-level OR check) is an M2 item.
 
 **Account constraints:** `freeze_config` `#[account(mut)]`; `admin_config` `#[account(pda = literal("admin_config"))]`.
 
@@ -170,7 +170,7 @@ Unfrozen → Frozen
 
 **Inputs:** `freeze_signer: AccountWithMetadata` (must match current `freeze_authority`); `target: AccountWithMetadata`.
 
-**Account constraints:** `frozen_pda` `#[account(init, pda = [literal("frozen"), account("target")])]` on first freeze; subsequent calls use `#[account(mut, pda = [...])]`.
+**Account constraints:** `frozen_pda` `#[account(init, pda = [literal("frozen"), arg("target")])]` on first freeze; subsequent calls use `#[account(mut, pda = [...])]`.
 
 **Effect:** initializes the per-account PDA (or mutates an existing one) and writes `is_frozen = true`.
 
@@ -238,7 +238,7 @@ Both `admin` and `freeze_authority` can be PDAs. The CPI pattern is the same for
 
 The owning program builds a chained_call to the target freeze-authority instruction, includes the PDA in the call's account list, and declares `caller-pda-seeds = seed`. LEZ verifies that `AccountId::for_public_pda(caller_program_id, seed)` matches `PDA.account_id`. If it does, LEZ propagates `is_authorized = true` to the callee. The handler's identity check (`signer.account_id == admin_config.admin` or `signer.account_id == freeze_config.freeze_authority`) passes just as it would for an EOA signer.
 
-**admin as PDA**: the owning program calls `freeze_initialize`, `freeze_authority_transfer`, or `freeze_authority_renounce`'s admin path with the admin PDA as the `admin_signer` account. `AdminConfig::assert_admin` succeeds because LEZ has set `is_authorized = true` via the seed claim.
+**admin as PDA**: the owning program calls `freeze_initialize`, `freeze_authority_transfer`, or `freeze_authority_renounce`'s admin path with the admin PDA as the `caller` account. `AdminConfig::assert_admin` succeeds because LEZ has set `is_authorized = true` via the seed claim.
 
 **freeze_authority as PDA**: the owning program calls `freeze_program`, `freeze_program_release`, `freeze_account`, `freeze_account_release`, or the self-path of `freeze_authority_renounce` with the freeze PDA as the `freeze_signer` account. `FreezeConfig::assert_freeze_authority` succeeds.
 

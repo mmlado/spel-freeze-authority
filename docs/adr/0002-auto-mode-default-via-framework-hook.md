@@ -13,6 +13,7 @@ Cost: requires a second upstream PR to `spel-framework-macros` on top of admin-a
 **2. Bare = manual, `(auto)` opts in (proposal-faithful).**
 Honors the proposal's exact attribute shape.
 Rejected because:
+
 - Default is the unsafe choice. Consumer forgets to annotate → F3 leaks. Defeats the "secure by default" framing.
 - The proposal's "safer default" narrative becomes false at the call site.
 - Manual mode still ships (Q3=A); proposal's manual-as-an-option commitment is preserved.
@@ -33,8 +34,8 @@ Rejected because the proposal commits to two modes (Q3=A). Selective-gating use 
 
 ```toml
 [package.metadata.spel.wrap_instructions]
-wrapper = "freeze_authority_macros::require_not_frozen"
-skip = ["manual"]
+wrapper = "freeze_authority::require_not_frozen"
+skip = "manual"
 self_exempt_marker = "freeze_exempt"
 exempt = [
   "admin_authority::admin_initialize",
@@ -44,7 +45,7 @@ exempt = [
 ```
 
 - `wrapper`: proc-macro attribute the framework prepends onto each non-exempt dispatched instruction when wrap is active. Same `require_not_frozen` consumers apply by hand in manual mode — one proc-macro, two callers.
-- `skip`: arg literals on the consumer's `#[freeze_authority]` attribute that skip wrap. Default behavior (bare attr or any arg not in this list) is wrap. Only `manual` skips for this extension.
+- `skip`: the single arg literal on the consumer's `#[freeze_authority]` attribute that skips wrap. Optional; when the key is absent the extension offers no opt-out and wrap is always active. Bare attr or any other arg wraps. Only `manual` skips for this extension.
 - `self_exempt_marker`: attribute name the framework recognizes as "skip this fn from wrap". freeze-authority's own management instructions self-declare via `#[freeze_exempt]`; consumer instructions in auto mode can also use it. Same attribute, double duty.
 - `exempt`: cross-crate dispatched instructions to skip. Only contains admin-authority's three because we don't touch admin-authority's source; freeze-authority's own management instructions use the self_exempt_marker instead.
 

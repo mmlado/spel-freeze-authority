@@ -49,7 +49,7 @@ pub struct FrozenAccountState {
 }
 ```
 
-**PDA derivation:** `(program_id, "frozen", target_account_id)`. Multi-seed PDA. SPEL's `#[account(pda = [literal("frozen"), account("target")])]` syntax derives the address at runtime from another param (the target). Supported by `spel-framework-macros` since the multi-seed PDA work (per `spel-framework-macros/src/lib.rs:711-714`).
+**PDA derivation:** `(program_id, "frozen", target_account_id)`. Multi-seed PDA. SPEL's `#[account(pda = [literal("frozen"), arg("target")])]` syntax derives the address at runtime from another param (the target). Supported by `spel-framework-macros` multi-seed PDA parsing.
 
 **Encoding:** fixed 1 byte — single bool. Smallest possible per-account state. ADR-0008 (existence-only encoding) was considered for further savings but rejected — proposal commits to bool-inside.
 
@@ -63,7 +63,7 @@ pub struct FrozenAccountState {
 | Frozen       | present      | `true`            |
 | Released     | present      | `false`           |
 
-The auto-wrap gate prologue:
+The planned gate prologue (M2 implements the macro body):
 
 ```rust
 let __cfg = ::freeze_authority::FreezeConfig::from_account(&freeze_config)?;
@@ -94,9 +94,6 @@ Library-level error enum, mapped to `SpelError::Unauthorized` at the SPEL bounda
 pub enum FreezeError {
     NotInitialized,          // empty data in freeze_config
     AlreadyInitialized,      // reinit attempt
-    DecodingFailed,
-    EncodingFailed,
-    AccountDataTooLarge,
     InvalidCandidate,        // FreezeCandidate validation failed
     UndeployedPda,           // PDA candidate not yet deployed
     CandidateMismatch,       // PDA address doesn't match derivation
@@ -111,13 +108,15 @@ pub enum FreezeError {
 }
 
 impl From<FreezeError> for SpelError {
-    fn from(_err: FreezeError) -> Self {
-        SpelError::Unauthorized
+    fn from(e: FreezeError) -> Self {
+        SpelError::Unauthorized {
+            message: e.to_string(),
+        }
     }
 }
 ```
 
-Mapping is uniform (`Unauthorized`) at the SPEL boundary so consumer error handling stays simple. The library-level enum carries the granular reason for tests and for handler-side branching.
+Mapping is uniform (`Unauthorized`) at the SPEL boundary so consumer error handling stays simple. The `Display` string carries the granular reason into the message field; the library-level enum keeps it available for tests and handler-side branching.
 
 ## PDA address summary
 
