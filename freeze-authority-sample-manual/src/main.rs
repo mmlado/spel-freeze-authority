@@ -1,3 +1,4 @@
+use freeze_authority::require_not_frozen;
 use spel_framework::prelude::*;
 
 #[lez_program]

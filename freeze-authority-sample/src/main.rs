@@ -1,3 +1,4 @@
+use freeze_authority::freeze_exempt;
 use spel_framework::prelude::*;
 
 #[lez_program]

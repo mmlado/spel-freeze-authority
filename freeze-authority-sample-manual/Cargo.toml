@@ -9,5 +9,5 @@ borsh = { version = "1", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 spel-framework = { git = "https://github.com/mmlado/spel.git", branch = "feat/wrap_instructions" }
 nssa_core = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", tag = "v0.2.0", package = "lee_core" }
-admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", branch = "m1" }
+admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", branch = "m2_freeze" }
 freeze-authority = { path = "../freeze-authority" }

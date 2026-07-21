@@ -146,13 +146,13 @@ impl From<FreezeError> for SpelError {
 /// `new_freeze_authority` declares the intended authority; `new_freeze_account`
 /// is the chain-state evidence the candidate is real. Re-initialisation is
 /// rejected automatically by `#[account(init)]`.
-#[require_admin] // In front of instruction for local build
+#[require_admin]
 #[instruction]
 #[freeze_exempt]
 pub fn freeze_initialize(
     #[account(init, pda = literal("freeze_config"))] mut freeze_config: AccountWithMetadata,
     #[account(pda = literal("admin_config"))] admin_config: AccountWithMetadata,
-    #[account(signer)] signer: AccountWithMetadata,
+    #[account(signer)] caller: AccountWithMetadata,
     new_freeze_account: AccountWithMetadata,
     new_freeze_authority: ::freeze_authority::FreezeCandidate,
 ) -> SpelResult {
@@ -190,13 +190,13 @@ pub fn freeze_program_release(
 /// Only the current admin can call (per RFP-002 F2). Accepts both Initialized
 /// and Renounced starting states per ADR-0007 — admin may repopulate a vacant
 /// slot. F3 carve-out: callable while the program is frozen.
-#[require_admin] // In front of instruction for local build
+#[require_admin]
 #[instruction]
 #[freeze_exempt]
 pub fn freeze_authority_transfer(
     #[account(mut, pda = literal("freeze_config"))] mut freeze_config: AccountWithMetadata,
     #[account(pda = literal("admin_config"))] admin_config: AccountWithMetadata,
-    #[account(signer)] signer: AccountWithMetadata,
+    #[account(signer)] caller: AccountWithMetadata,
     new_freeze_account: AccountWithMetadata,
     new_freeze_authority: ::freeze_authority::FreezeCandidate,
 ) -> SpelResult {
@@ -211,13 +211,13 @@ pub fn freeze_authority_transfer(
 /// `freeze_authority`. Per ADR-0007, NOT terminal: admin can repopulate the
 /// slot later via `freeze_authority_transfer`. F3 carve-out: callable while
 /// the program is frozen.
-#[require_admin] // In front of instruction for local build
+#[require_admin]
 #[instruction]
 #[freeze_exempt]
 pub fn freeze_authority_renounce(
     #[account(mut, pda = literal("freeze_config"))] mut freeze_config: AccountWithMetadata,
     #[account(pda = literal("admin_config"))] admin_config: AccountWithMetadata,
-    #[account(signer)] signer: AccountWithMetadata,
+    #[account(signer)] caller: AccountWithMetadata,
 ) -> SpelResult {
     todo!()
 }

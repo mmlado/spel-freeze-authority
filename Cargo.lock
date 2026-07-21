@@ -5,18 +5,18 @@ version = 4
 [[package]]
 name = "admin-authority"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-admin-authority.git?branch=m1#971542d29c50e7e43b25ae65ffc0b5e065aa84e9"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?branch=m2_freeze#89d6e4488946186c036f78e00eed4b353d591193"
 dependencies = [
  "admin-authority-macros",
  "borsh",
  "serde",
- "spel-framework 0.5.0 (git+https://github.com/mmlado/spel.git?branch=feat%2Fadmin_authority)",
+ "spel-framework",
 ]
 
 [[package]]
 name = "admin-authority-macros"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-admin-authority.git?branch=m1#971542d29c50e7e43b25ae65ffc0b5e065aa84e9"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?branch=m2_freeze#89d6e4488946186c036f78e00eed4b353d591193"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -818,7 +818,7 @@ dependencies = [
  "borsh",
  "freeze-authority-macros",
  "serde",
- "spel-framework 0.5.0 (git+https://github.com/mmlado/spel.git?branch=feat%2Fwrap_instructions)",
+ "spel-framework",
 ]
 
 [[package]]
@@ -839,7 +839,7 @@ dependencies = [
  "freeze-authority",
  "lee_core",
  "serde",
- "spel-framework 0.5.0 (git+https://github.com/mmlado/spel.git?branch=feat%2Fwrap_instructions)",
+ "spel-framework",
 ]
 
 [[package]]
@@ -851,7 +851,7 @@ dependencies = [
  "freeze-authority",
  "lee_core",
  "serde",
- "spel-framework 0.5.0 (git+https://github.com/mmlado/spel.git?branch=feat%2Fwrap_instructions)",
+ "spel-framework",
 ]
 
 [[package]]
@@ -1848,48 +1848,19 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 [[package]]
 name = "spel-framework"
 version = "0.5.0"
-source = "git+https://github.com/mmlado/spel.git?branch=feat%2Fadmin_authority#b4e0e987de93592e3e83e054cbf34ebd2f1c68ac"
+source = "git+https://github.com/mmlado/spel.git?branch=feat%2Fwrap_instructions#caf6b570c17332316593e859a9251bcf34216f2f"
 dependencies = [
  "borsh",
  "lee_core",
  "serde_json",
- "spel-framework-core 0.5.0 (git+https://github.com/mmlado/spel.git?branch=feat%2Fadmin_authority)",
- "spel-framework-macros 0.5.0 (git+https://github.com/mmlado/spel.git?branch=feat%2Fadmin_authority)",
-]
-
-[[package]]
-name = "spel-framework"
-version = "0.5.0"
-source = "git+https://github.com/mmlado/spel.git?branch=feat%2Fwrap_instructions#e20c49f82011726f5ec7deccc5d9b8aecd947b89"
-dependencies = [
- "borsh",
- "lee_core",
- "serde_json",
- "spel-framework-core 0.5.0 (git+https://github.com/mmlado/spel.git?branch=feat%2Fwrap_instructions)",
- "spel-framework-macros 0.5.0 (git+https://github.com/mmlado/spel.git?branch=feat%2Fwrap_instructions)",
+ "spel-framework-core",
+ "spel-framework-macros",
 ]
 
 [[package]]
 name = "spel-framework-core"
 version = "0.5.0"
-source = "git+https://github.com/mmlado/spel.git?branch=feat%2Fadmin_authority#b4e0e987de93592e3e83e054cbf34ebd2f1c68ac"
-dependencies = [
- "base58",
- "borsh",
- "lee_core",
- "proc-macro2",
- "serde",
- "serde_json",
- "sha2",
- "syn 2.0.119",
- "thiserror 1.0.69",
- "toml",
-]
-
-[[package]]
-name = "spel-framework-core"
-version = "0.5.0"
-source = "git+https://github.com/mmlado/spel.git?branch=feat%2Fwrap_instructions#e20c49f82011726f5ec7deccc5d9b8aecd947b89"
+source = "git+https://github.com/mmlado/spel.git?branch=feat%2Fwrap_instructions#caf6b570c17332316593e859a9251bcf34216f2f"
 dependencies = [
  "base58",
  "borsh",
@@ -1906,26 +1877,13 @@ dependencies = [
 [[package]]
 name = "spel-framework-macros"
 version = "0.5.0"
-source = "git+https://github.com/mmlado/spel.git?branch=feat%2Fadmin_authority#b4e0e987de93592e3e83e054cbf34ebd2f1c68ac"
+source = "git+https://github.com/mmlado/spel.git?branch=feat%2Fwrap_instructions#caf6b570c17332316593e859a9251bcf34216f2f"
 dependencies = [
  "proc-macro2",
  "quote",
  "serde_json",
  "sha2",
- "spel-framework-core 0.5.0 (git+https://github.com/mmlado/spel.git?branch=feat%2Fadmin_authority)",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "spel-framework-macros"
-version = "0.5.0"
-source = "git+https://github.com/mmlado/spel.git?branch=feat%2Fwrap_instructions#e20c49f82011726f5ec7deccc5d9b8aecd947b89"
-dependencies = [
- "proc-macro2",
- "quote",
- "serde_json",
- "sha2",
- "spel-framework-core 0.5.0 (git+https://github.com/mmlado/spel.git?branch=feat%2Fwrap_instructions)",
+ "spel-framework-core",
  "syn 2.0.119",
 ]
 

@@ -6,7 +6,6 @@ lints.workspace = true
 
 [package.metadata.spel]
 extension_attr = "freeze_authority"
-instruction_attrs = ["require_not_frozen", "freeze_exempt"]
 
 [package.metadata.spel.wrap_instructions]
 wrapper = "freeze_authority::require_not_frozen"
@@ -22,5 +21,5 @@ exempt = [
 borsh = { version = "1", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 spel-framework = { git = "https://github.com/mmlado/spel.git", branch = "feat/wrap_instructions" }
-admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", branch = "m1" }
+admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", branch = "m2_freeze" }
 freeze-authority-macros = { path = "../freeze-authority-macros" }
