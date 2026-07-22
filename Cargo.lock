@@ -841,6 +841,7 @@ dependencies = [
  "lee_core",
  "serde",
  "spel-framework",
+ "spel-framework-core",
 ]
 
 [[package]]
@@ -853,6 +854,7 @@ dependencies = [
  "lee_core",
  "serde",
  "spel-framework",
+ "spel-framework-core",
 ]
 
 [[package]]

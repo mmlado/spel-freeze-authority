@@ -23,6 +23,7 @@ The freeze authority lifecycle is governed by the admin from [spel-admin-authori
 - [docs/account-model.md](docs/account-model.md) describes the on-chain accounts and encodings.
 - [docs/authority-lifecycle.md](docs/authority-lifecycle.md) describes the state machines and transitions.
 - [docs/adr/](docs/adr/) records the design decisions and their deviations from the proposal.
+- [docs/dry-run-output.txt](docs/dry-run-output.txt) is a captured CLI dry-run across the auto-gated consumer instruction and every freeze management instruction. Regenerate with `scripts/dry-run.sh` after any change to the sample or the framework.
 
 The framework-side extension mechanism (discovery, injection, auto-wrap) lives in the [spel fork](https://github.com/mmlado/spel) on the `feat/wrap_instructions` branch.
 

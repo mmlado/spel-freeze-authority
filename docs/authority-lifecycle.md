@@ -95,7 +95,7 @@ Initialized → Initialized (new authority)
 Initialized → Renounced
 ```
 
-**Inputs:** `caller: AccountWithMetadata` — must match EITHER the current admin OR the current freeze_authority. Dual-path per ADR-0004. Note: the m1 declaration carries `#[require_admin]`, which gates on admin only; reconciling the gate with the dual-path policy (body-level OR check) is an M2 item.
+**Inputs:** `caller: AccountWithMetadata` — must match EITHER the current admin OR the current freeze_authority. Dual-path per ADR-0004. The instruction carries `#[instruction] #[freeze_exempt]` without `#[require_admin]`; the OR check lives inside `FreezeConfig::renounce`, which tries the admin path first (`AdminConfig::from_account(admin_account).and_then(|c| c.assert_admin(current))`) and falls back to the freeze-authority holder path (`self.slot.assert(current)`) if the admin path fails.
 
 **Account constraints:** `freeze_config` `#[account(mut)]`; `admin_config` `#[account(pda = literal("admin_config"))]`.
 
@@ -170,7 +170,7 @@ Unfrozen → Frozen
 
 **Inputs:** `freeze_signer: AccountWithMetadata` (must match current `freeze_authority`); `target: AccountWithMetadata`.
 
-**Account constraints:** `frozen_pda` `#[account(init, pda = [literal("frozen"), arg("target")])]` on first freeze; subsequent calls use `#[account(mut, pda = [...])]`.
+**Account constraints:** `frozen_pda` `#[account(mut, pda = [literal("frozen"), arg("target")])]`. The `mut` constraint handles both first-freeze (empty PDA data, initialised in place) and re-freeze (existing PDA, bool toggled) uniformly — no separate init path.
 
 **Effect:** initializes the per-account PDA (or mutates an existing one) and writes `is_frozen = true`.
 
@@ -198,11 +198,11 @@ Two states have empty-looking config slots in different ways. Uninitialized mean
 | Initialized   | non-empty      | non-default            |
 | Renounced     | non-empty      | `AccountId::default()` |
 
-`FreezeConfig::assert_freeze_authority` discriminates in order:
+`FreezeConfig::from_account` plus `FreezeConfig::assert` discriminate in order:
 
-1. If `account.data` is empty, return `FreezeError::NotInitialized`.
-2. If decode succeeds and `freeze_authority == AccountId::default()`, return `FreezeError::Renounced`.
-3. Otherwise compare `signer.account_id` to `freeze_authority`.
+1. `from_account` returns `FreezeError::NotInitialized` if `account.data` is empty.
+2. `from_account` decodes into `FreezeConfig`, then `assert(signer)` returns `FreezeError::Renounced` when `slot.is_renounced()` (holder is `AccountId::default()`).
+3. Otherwise `assert(signer)` compares `signer.account_id` to `slot.holder()`, returning `FreezeError::NotFreezeAuthority` on mismatch or `FreezeError::MissingSignature` when the witness set has not authorised the signer.
 
 This three-way discrimination is what protects every management instruction from being called before `freeze_initialize`: any call against an Uninitialized state returns `NotInitialized` cleanly. No special-casing per instruction is needed.
 
@@ -220,7 +220,7 @@ The auto-wrap macro treats "absent" and "present-and-false" identically: not fro
 
 `freeze_config` is created with `#[account(init)]`. LEZ's `validate_execution` rule rejects any post-state where the pre-account was already non-default but the instruction declared `init`. So once `freeze_initialize` succeeds, no second call can succeed, even after renounce. The PDA address is fixed at `(program_id, "freeze_config")`, so there is no second address to initialize.
 
-Per-account PDAs reuse the same protection per target `AccountId`. A repeated `freeze_account(target)` against the same target is an `#[account(mut)]` write, not an `#[account(init)]` create, after the first one succeeds. The library uses `#[account(init_if_needed)]` semantics inside the handler if SPEL supports it; otherwise it declares separate `freeze_account` (init path) and `freeze_account_update` (mut path) variants. M2 resolves which.
+Per-account PDAs use `#[account(mut, pda = [literal("frozen"), arg("target")])]` uniformly. First-freeze against a target is a write into an empty account data slot; re-freeze toggles the bool. No separate init variant. The `FrozenAccountState::from_data_or_default` decoder treats empty bytes as `is_frozen = false`, so the first-freeze path is a plain write with no init ceremony.
 
 The M1 LEZ rent investigation confirmed that closed-and-reinit cycles are impossible (LEZ rule 7 forbids `program_owner → DEFAULT`), so PDAs stay owned by freeze-authority for their lifetime. Per ADR-0008, releases mutate the bool in place rather than closing the PDA. Storage is balance-free, so persistent PDAs do not accumulate rent against the freeze authority.
 
@@ -240,7 +240,7 @@ The owning program builds a chained_call to the target freeze-authority instruct
 
 **admin as PDA**: the owning program calls `freeze_initialize`, `freeze_authority_transfer`, or `freeze_authority_renounce`'s admin path with the admin PDA as the `caller` account. `AdminConfig::assert_admin` succeeds because LEZ has set `is_authorized = true` via the seed claim.
 
-**freeze_authority as PDA**: the owning program calls `freeze_program`, `freeze_program_release`, `freeze_account`, `freeze_account_release`, or the self-path of `freeze_authority_renounce` with the freeze PDA as the `freeze_signer` account. `FreezeConfig::assert_freeze_authority` succeeds.
+**freeze_authority as PDA**: the owning program calls `freeze_program`, `freeze_program_release`, `freeze_account`, `freeze_account_release`, or the self-path of `freeze_authority_renounce` with the freeze PDA as the `freeze_signer` account. `FreezeConfig::assert` succeeds.
 
 Only the owning program can produce a valid seed claim, because LEZ pins `caller_program_id` to the actual caller. PDA candidates passed to `freeze_initialize` or `freeze_authority_transfer` (via `FreezeCandidate::Pda`) must already be deployed; otherwise validation rejects.
 

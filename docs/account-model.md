@@ -65,17 +65,19 @@ pub struct FrozenAccountState {
 | Frozen       | present      | `true`            |
 | Released     | present      | `false`           |
 
-The planned gate prologue (M2 implements the macro body):
+The gate prologue emitted by `require_not_frozen` (source lives in `freeze-authority-macros`):
 
 ```rust
-let __cfg = ::freeze_authority::FreezeConfig::from_account(&freeze_config)?;
+let __cfg = ::freeze_authority::FreezeConfig::from_account(&#freeze_config_ident)?;
 if __cfg.is_frozen { return Err(FreezeError::Frozen.into()); }
 
 let __fa = ::freeze_authority::FrozenAccountState::from_data_or_default(
-    &freeze_account.account.data,
+    &#freeze_account_ident.account.data,
 )?;
 if __fa.is_frozen { return Err(FreezeError::AccountFrozen.into()); }
 ```
+
+Under ADR-0010's wrapper-arg contract, `#freeze_config_ident` and `#freeze_account_ident` default to `freeze_config` and `freeze_account` when the attr is bare and are overridden by kwargs when the framework's auto-wrap emits resolved names (`#[require_not_frozen(freeze_config = my_cfg, freeze_account = my_frozen, caller = sender)]`).
 
 Distinct variants for gate rejection (`Frozen` / `AccountFrozen`) versus management-op no-op errors (`AlreadyFrozen` / `AccountAlreadyFrozen`). The lenient decoder `from_data_or_default` treats empty bytes as the never-frozen default and errors only on malformed non-empty bytes — the common path for a healthy program stays fast.
 
@@ -86,7 +88,7 @@ Distinct variants for gate rejection (`Frozen` / `AccountFrozen`) versus managem
 | `FreezeConfig`       | 33 B    | `[AccountId; 32] ++ u8` |
 | `FrozenAccountState` | 1 B     | `u8`                    |
 
-No version byte. No length prefix. Forward-compatibility via field append is technically possible (Borsh accepts trailing bytes on decode? — verify in M2; if not, version bytes are a v2 concern).
+No version byte. No length prefix. Borsh's `try_from_slice` (which `FreezeConfig::decode` uses) rejects trailing bytes on strict decode, so a naive field-append v2 is a wire-breaking change. Version bytes are deferred to a v2 revision if the account model ever needs to evolve.
 
 ## Errors
 
