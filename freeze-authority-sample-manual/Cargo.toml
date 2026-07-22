@@ -7,7 +7,7 @@ lints.workspace = true
 [dependencies]
 borsh = { version = "1", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
-spel-framework = { git = "https://github.com/mmlado/spel.git", branch = "feat/wrap_instructions" }
+spel-framework = { git = "https://github.com/mmlado/spel.git", rev = "c701b7836494f73be46c4e38d8fb1e27d0dfe6f6" }
 nssa_core = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", tag = "v0.2.0", package = "lee_core" }
-admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", branch = "m2_freeze" }
+admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", rev = "d92f63d20b8ff4731e2f5ca60d43501f3b4d0dfb" }
 freeze-authority = { path = "../freeze-authority" }

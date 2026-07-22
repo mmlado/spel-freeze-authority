@@ -6,7 +6,9 @@ A SPEL library that adds a freeze pattern to LEZ programs: a program-wide frozen
 
 Add `#[freeze_authority]` to a `#[lez_program]` module and the library contributes seven management instructions to the program and gates every other dispatched instruction with a freeze check. The bare attribute is auto mode. `#[freeze_authority(manual)]` disables the automatic gating so the consumer annotates individual instructions with `#[require_not_frozen]` instead. `#[freeze_exempt]` opts a single instruction out of auto mode.
 
-The freeze authority lifecycle is governed by the admin from [spel-admin-authority](https://github.com/mmlado/spel-admin-authority) (RFP-001). The dependency is hard: `freeze_initialize` requires the admin's signature.
+Consumers can name their own params freely. A gated instruction with `#[account(signer)] owner`, `#[account(pda = literal("freeze_config"))] my_cfg`, and `#[account(pda = [literal("frozen"), account("owner")])] my_frozen` reuses all three instead of getting duplicates injected — the framework detects each by role (signer, single-literal PDA, compound-seed PDA) and skips the redundant inject. See [ADR-0010](docs/adr/0010-wrapper-args-are-inject-account-names.md).
+
+The freeze authority lifecycle is governed by the admin from [spel-admin-authority](https://github.com/mmlado/spel-admin-authority) (RFP-001). The dependency is hard: `freeze_initialize` requires the admin's signature. Consumer programs must list both `freeze-authority` and `admin-authority` as direct dependencies. The framework discovers extensions in direct dependencies only, never transitively.
 
 ## Workspace
 
@@ -23,3 +25,15 @@ The freeze authority lifecycle is governed by the admin from [spel-admin-authori
 - [docs/adr/](docs/adr/) records the design decisions and their deviations from the proposal.
 
 The framework-side extension mechanism (discovery, injection, auto-wrap) lives in the [spel fork](https://github.com/mmlado/spel) on the `feat/wrap_instructions` branch.
+
+## Dependencies
+
+The three cross-repo dependencies are pinned to exact revs so the review surface is reproducible from git state alone. Current baseline:
+
+| Dep | Repo | Branch | Rev |
+| --- | --- | --- | --- |
+| `spel-framework` | [mmlado/spel](https://github.com/mmlado/spel) | `feat/wrap_instructions_m2` | `c701b78` |
+| `admin-authority` | [mmlado/spel-admin-authority](https://github.com/mmlado/spel-admin-authority) | `m2_freeze_m2` | `d92f63d` |
+| `authority` (`spel-authority`) | [mmlado/spel-authority](https://github.com/mmlado/spel-authority) | `freeze_m2` | `b106e00` |
+
+Bumping any of these requires updating the `rev` field in all Cargo.toml files that reference the dep (`freeze-authority/`, `freeze-authority-sample/`, `freeze-authority-sample-manual/`) plus this table.

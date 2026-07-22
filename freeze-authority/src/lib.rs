@@ -10,8 +10,8 @@
 //!   `freeze_authority_renounce`, `freeze_program`, `freeze_program_release`,
 //!   `freeze_account`, `freeze_account_release`.
 
-use admin_authority::{require_admin};
-use authority::{AuthoritySlot, AuthorityCandidate, AuthorityError};
+use admin_authority::{AdminConfig, AdminError, require_admin};
+use authority::{AuthorityCandidate, AuthorityError, AuthoritySlot};
 use borsh::{BorshDeserialize, BorshSerialize};
 use spel_framework::prelude::*;
 
@@ -88,7 +88,11 @@ impl FreezeConfig {
     /// Only the current freeze authority may call. `slot.assert(current)`
     /// runs first; a non-holder signer is rejected with
     /// `FreezeError::NotFreezeAuthority`.
-    pub fn set_is_frozen(&mut self, current: &AccountWithMetadata, state: bool) -> Result<(), FreezeError> {
+    pub fn set_is_frozen(
+        &mut self,
+        current: &AccountWithMetadata,
+        state: bool,
+    ) -> Result<(), FreezeError> {
         self.slot.assert(current)?;
         self.is_frozen = state;
         Ok(())
@@ -147,9 +151,31 @@ impl FreezeConfig {
     /// per ADR-0004.
     pub fn renounce(
         &mut self,
+        admin_account: &AccountWithMetadata,
+        current: &AccountWithMetadata,
     ) -> Result<(), FreezeError> {
+        let admin_ok = AdminConfig::from_account(admin_account)
+            .and_then(|c| c.assert_admin(current).map_err(Into::into))
+            .is_ok();
+        if !admin_ok && self.slot.assert(current).is_err() {
+            return Err(FreezeError::NotAdminOrFreezeAuthority);
+        }
         self.slot.renounce();
         Ok(())
+    }
+
+    /// Loads config from account, installs the validated candidate, writes back.
+    ///
+    /// No auth check. `freeze_authority_transfer` gates on admin via
+    /// `#[require_admin`. Accepts a renounced starting state per ADR-0007.
+    pub fn perform_transfer(
+        config_account: &mut AccountWithMetadata,
+        candidate: FreezeCandidate,
+        new_account: &AccountWithMetadata,
+    ) -> Result<(), FreezeError> {
+        let mut state = Self::from_account(config_account)?;
+        state.transfer(candidate, new_account)?;
+        state.write_to(config_account)
     }
 
     /// Loads config from account, renounces the slot, writes back.
@@ -157,10 +183,12 @@ impl FreezeConfig {
     /// Convenience workflow for callers that have already run their own
     /// auth check.
     pub fn perform_renounce(
+        admin_account: &AccountWithMetadata,
+        current: &AccountWithMetadata,
         config_account: &mut AccountWithMetadata,
     ) -> Result<(), FreezeError> {
         let mut state = Self::from_account(config_account)?;
-        state.renounce()?;
+        state.renounce(admin_account, current)?;
         state.write_to(config_account)
     }
 
@@ -359,7 +387,9 @@ impl core::fmt::Display for FreezeError {
             FreezeError::DecodingFailed => write!(f, "failed to decode freeze account state"),
             FreezeError::Frozen => write!(f, "program is frozen"),
             FreezeError::AccountFrozen => write!(f, "account is frozen"),
-            FreezeError::AccountDataTooLarge => write!(f, "FreezeConfig too large for account data"),
+            FreezeError::AccountDataTooLarge => {
+                write!(f, "FreezeConfig too large for account data")
+            }
         }
     }
 }
@@ -375,12 +405,29 @@ impl From<FreezeError> for SpelError {
 impl From<AuthorityError> for FreezeError {
     fn from(e: AuthorityError) -> Self {
         match e {
-            AuthorityError::InvalidCandidate    => FreezeError::InvalidCandidate,
-            AuthorityError::UndeployedPda       => FreezeError::UndeployedPda,
-            AuthorityError::CandidateMismatch   => FreezeError::CandidateMismatch,
-            AuthorityError::NotHolder           => FreezeError::NotFreezeAuthority,
-            AuthorityError::Renounced           => FreezeError::Renounced,
-            AuthorityError::MissingSignature    => FreezeError::MissingSignature,
+            AuthorityError::InvalidCandidate => FreezeError::InvalidCandidate,
+            AuthorityError::UndeployedPda => FreezeError::UndeployedPda,
+            AuthorityError::CandidateMismatch => FreezeError::CandidateMismatch,
+            AuthorityError::NotHolder => FreezeError::NotFreezeAuthority,
+            AuthorityError::Renounced => FreezeError::Renounced,
+            AuthorityError::MissingSignature => FreezeError::MissingSignature,
+        }
+    }
+}
+
+impl From<AdminError> for FreezeError {
+    fn from(e: AdminError) -> Self {
+        match e {
+            AdminError::NotInitialized => FreezeError::NotInitialized,
+            AdminError::Renounced => FreezeError::Renounced,
+            AdminError::NotAdmin => FreezeError::NotAdmin,
+            AdminError::MissingSignature => FreezeError::MissingSignature,
+            AdminError::InvalidCandidate => FreezeError::InvalidCandidate,
+            AdminError::UndeployedPda => FreezeError::UndeployedPda,
+            AdminError::CandidateMismatch => FreezeError::CandidateMismatch,
+            AdminError::EncodingFailed => FreezeError::EncodingFailed,
+            AdminError::DecodingFailed => FreezeError::DecodingFailed,
+            AdminError::AccountDataTooLarge => FreezeError::AccountDataTooLarge,
         }
     }
 }
@@ -417,6 +464,37 @@ pub fn freeze_initialize(
     ))
 }
 
+#[require_admin]
+#[instruction]
+#[freeze_exempt]
+pub fn freeze_authority_transfer(
+    #[account(pda = literal("admin_config"))] admin_config: AccountWithMetadata,
+    #[account(mut, pda = literal("freeze_config"))] mut freeze_config: AccountWithMetadata,
+    #[account(signer)] caller: AccountWithMetadata,
+    new_account: AccountWithMetadata,
+    candidate: FreezeCandidate,
+) -> SpelResult {
+    FreezeConfig::perform_transfer(&mut freeze_config, candidate, &new_account)?;
+    Ok(SpelOutput::execute(
+        vec![admin_config.account, freeze_config.account, caller.account],
+        vec![],
+    ))
+}
+
+#[instruction]
+#[freeze_exempt]
+pub fn freeze_authority_renounce(
+    #[account(pda = literal("admin_config"))] admin_config: AccountWithMetadata,
+    #[account(mut, pda = literal("freeze_config"))] mut freeze_config: AccountWithMetadata,
+    #[account(signer)] caller: AccountWithMetadata,
+) -> SpelResult {
+    FreezeConfig::perform_renounce(&admin_config, &caller, &mut freeze_config)?;
+    Ok(SpelOutput::execute(
+        vec![admin_config.account, freeze_config.account, caller.account],
+        vec![],
+    ))
+}
+
 /// Sets the program-wide frozen flag to `true`.
 ///
 /// Only the current freeze authority can call. While `is_frozen` is `true`,
@@ -425,6 +503,7 @@ pub fn freeze_initialize(
 #[instruction]
 pub fn freeze_program(
     #[account(mut, pda = literal("freeze_config"))] mut freeze_config: AccountWithMetadata,
+    #[account(pda = [literal("frozen"), account("caller")])] _freeze_account: AccountWithMetadata,
     #[account(signer)] caller: AccountWithMetadata,
 ) -> SpelResult {
     FreezeConfig::perform_freeze(&mut freeze_config, &caller)?;
@@ -515,6 +594,18 @@ mod tests {
             },
             is_authorized: false,
             account_id: AccountId::new([9; 32]),
+        }
+    }
+
+    fn admin_account_with(admin_id_byte: u8) -> AccountWithMetadata {
+        let cfg = AdminConfig::initialize(AccountId::new([admin_id_byte; 32])).unwrap();
+        AccountWithMetadata {
+            account: Account {
+                data: cfg.encode().unwrap().try_into().unwrap(),
+                ..Account::default()
+            },
+            is_authorized: false,
+            account_id: AccountId::new([255; 32]),
         }
     }
 
@@ -725,11 +816,12 @@ mod tests {
     #[test]
     fn assert_rejects_renounced_slot() {
         let authority = acct(1, true);
+        let admin = admin_account_with(1);
         let mut config = FreezeConfig {
             slot: AuthoritySlot::initialize(authority.account_id).unwrap(),
             is_frozen: false,
         };
-        config.renounce().unwrap();
+        config.renounce(&admin, &authority).unwrap();
         assert_eq!(
             config.assert(&authority).unwrap_err(),
             FreezeError::Renounced
@@ -759,7 +851,10 @@ mod tests {
         };
         cfg.transfer(FreezeCandidate::Signer, &new).unwrap();
         assert!(cfg.assert(&new).is_ok());
-        assert_eq!(cfg.assert(&old).unwrap_err(), FreezeError::NotFreezeAuthority);
+        assert_eq!(
+            cfg.assert(&old).unwrap_err(),
+            FreezeError::NotFreezeAuthority
+        );
     }
 
     #[test]
@@ -793,7 +888,8 @@ mod tests {
             is_frozen: false,
         };
         assert_eq!(
-            cfg.transfer(FreezeCandidate::Pda { program_id, seed }, &new).unwrap_err(),
+            cfg.transfer(FreezeCandidate::Pda { program_id, seed }, &new)
+                .unwrap_err(),
             FreezeError::UndeployedPda
         );
     }
@@ -816,7 +912,8 @@ mod tests {
             is_frozen: false,
         };
         assert_eq!(
-            cfg.transfer(FreezeCandidate::Pda { program_id, seed }, &new).unwrap_err(),
+            cfg.transfer(FreezeCandidate::Pda { program_id, seed }, &new)
+                .unwrap_err(),
             FreezeError::CandidateMismatch
         );
     }
@@ -824,11 +921,12 @@ mod tests {
     #[test]
     fn renounce_zeros_slot() {
         let auth = acct(1, true);
+        let admin = admin_account_with(1);
         let mut cfg = FreezeConfig {
             slot: AuthoritySlot::initialize(auth.account_id).unwrap(),
             is_frozen: false,
         };
-        cfg.renounce().unwrap();
+        cfg.renounce(&admin, &auth).unwrap();
         assert_eq!(cfg.assert(&auth).unwrap_err(), FreezeError::Renounced);
     }
 
@@ -863,11 +961,12 @@ mod tests {
     #[test]
     fn freeze_config_set_is_frozen_rejects_renounced_slot() {
         let auth = acct(1, true);
+        let admin = admin_account_with(1);
         let mut cfg = FreezeConfig {
             slot: AuthoritySlot::initialize(auth.account_id).unwrap(),
             is_frozen: false,
         };
-        cfg.renounce().unwrap();
+        cfg.renounce(&admin, &auth).unwrap();
         assert_eq!(
             cfg.set_is_frozen(&auth, true).unwrap_err(),
             FreezeError::Renounced
@@ -902,8 +1001,12 @@ mod tests {
             account_id: AccountId::new([9; 32]),
         };
         assert_eq!(
-            FreezeConfig::bootstrap(&mut config_account, FreezeCandidate::Signer, &default_signer)
-                .unwrap_err(),
+            FreezeConfig::bootstrap(
+                &mut config_account,
+                FreezeCandidate::Signer,
+                &default_signer
+            )
+            .unwrap_err(),
             FreezeError::InvalidCandidate
         );
     }
@@ -935,14 +1038,37 @@ mod tests {
     }
 
     #[test]
+    fn perform_transfer_preserves_is_frozen_flag() {
+        // Regression: a prior transfer implementation called perform_release
+        // internally, so transferring authority also unfroze the program.
+        // Verify perform_transfer only rotates the holder, leaving is_frozen
+        // untouched.
+        let old = acct(1, true);
+        let new = acct(2, true);
+        let cfg = FreezeConfig {
+            slot: AuthoritySlot::initialize(old.account_id).unwrap(),
+            is_frozen: true,
+        };
+        let mut config_account = config_account_with(&cfg);
+        FreezeConfig::perform_transfer(&mut config_account, FreezeCandidate::Signer, &new).unwrap();
+        let decoded = FreezeConfig::from_account(&config_account).unwrap();
+        assert!(
+            decoded.is_frozen,
+            "transfer must not clear the program-wide frozen flag"
+        );
+        assert!(decoded.assert(&new).is_ok());
+    }
+
+    #[test]
     fn perform_renounce_zeros_slot() {
         let auth = acct(1, true);
+        let admin = admin_account_with(1);
         let cfg = FreezeConfig {
             slot: AuthoritySlot::initialize(auth.account_id).unwrap(),
             is_frozen: false,
         };
         let mut config_account = config_account_with(&cfg);
-        FreezeConfig::perform_renounce(&mut config_account).unwrap();
+        FreezeConfig::perform_renounce(&admin, &auth, &mut config_account).unwrap();
         let decoded = FreezeConfig::from_account(&config_account).unwrap();
         assert_eq!(decoded.assert(&auth).unwrap_err(), FreezeError::Renounced);
     }
@@ -973,7 +1099,9 @@ mod tests {
         let freeze_config = config_account_with(&cfg);
         let mut state = FrozenAccountState::default();
         assert_eq!(
-            state.set_is_frozen(&freeze_config, &other, true).unwrap_err(),
+            state
+                .set_is_frozen(&freeze_config, &other, true)
+                .unwrap_err(),
             FreezeError::NotFreezeAuthority
         );
         assert!(!state.is_frozen);
@@ -989,7 +1117,9 @@ mod tests {
         };
         let mut state = FrozenAccountState::default();
         assert_eq!(
-            state.set_is_frozen(&freeze_config, &caller, true).unwrap_err(),
+            state
+                .set_is_frozen(&freeze_config, &caller, true)
+                .unwrap_err(),
             FreezeError::NotInitialized
         );
     }
@@ -1036,5 +1166,23 @@ mod tests {
     #[test]
     fn frozen_account_state_write_to_rejects_oversized_data() {
         // Same as above — 1-byte encoding can't overflow the data cap.
+    }
+    
+    #[test]
+    fn perform_renounce_rejects_unauthorized_caller() {
+        let auth = acct(1, true);        // freeze holder
+        let stranger = acct(2, true);    // not admin, not holder
+        let admin = admin_account_with(1); // admin is byte 1, not byte 2
+        let cfg = FreezeConfig {
+            slot: AuthoritySlot::initialize(auth.account_id).unwrap(),
+            is_frozen: false,
+        };
+        let mut config_account = config_account_with(&cfg);
+        let err = FreezeConfig::perform_renounce(&admin, &stranger, &mut config_account)
+            .unwrap_err();
+        assert_eq!(err, FreezeError::NotAdminOrFreezeAuthority);
+        // Slot untouched
+        let decoded = FreezeConfig::from_account(&config_account).unwrap();
+        assert!(decoded.assert(&auth).is_ok());
     }
 }

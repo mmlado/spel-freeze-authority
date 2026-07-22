@@ -35,7 +35,7 @@ wrapper = "require_not_frozen"
 [dependencies]
 borsh = { version = "1", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
-spel-framework = { git = "https://github.com/mmlado/spel.git", branch = "feat/wrap_instructions" }
-admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", branch = "m2_freeze" }
+spel-framework = { git = "https://github.com/mmlado/spel.git", rev = "c701b7836494f73be46c4e38d8fb1e27d0dfe6f6" }
+admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", rev = "d92f63d20b8ff4731e2f5ca60d43501f3b4d0dfb" }
 freeze-authority-macros = { path = "../freeze-authority-macros" }
-authority = { git = "https://github.com/mmlado/spel-authority.git", package = "spel-authority" }
+authority = { git = "https://github.com/mmlado/spel-authority.git", rev = "b106e00eb85b51de6c42d7d9f24a624f60d6a38f", package = "spel-authority" }

@@ -1,6 +1,9 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Expr, FnArg, ItemFn, MetaNameValue, Token, parse_macro_input, parse_quote, punctuated::Punctuated};
+use syn::{
+    Expr, FnArg, ItemFn, MetaNameValue, Token, parse_macro_input, parse_quote,
+    punctuated::Punctuated,
+};
 
 #[proc_macro_attribute]
 pub fn freeze_authority(_attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -26,14 +29,16 @@ pub fn require_not_frozen(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         };
 
-        if pair.path.is_ident("config") {
+        if pair.path.is_ident("freeze_config") {
             config_ident = value_ident;
         } else if pair.path.is_ident("freeze_account") {
             per_account_ident = value_ident;
+        } else if pair.path.is_ident("caller") {
+            let _ = value_ident;
         } else {
             return syn::Error::new_spanned(
                 &pair.path,
-                "unknown key; expected `config` or `freeze_account`",
+                "unknown key; expected `freeze_config` or `freeze_account` or `caller`",
             )
             .to_compile_error()
             .into();
@@ -54,7 +59,7 @@ pub fn require_not_frozen(attr: TokenStream, item: TokenStream) -> TokenStream {
         )?;
         if __freeze_acc.is_frozen {
             return Err(::freeze_authority::FreezeError::AccountFrozen.into());
-        }        
+        }
     }};
     func.block.stmts.insert(0, prologue);
     quote!(#func).into()

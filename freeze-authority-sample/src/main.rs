@@ -1,5 +1,5 @@
 use admin_authority::require_admin;
-use freeze_authority::freeze_exempt;
+use freeze_authority::{FreezeCandidate, freeze_exempt};
 use spel_framework::prelude::*;
 
 #[account_type]
@@ -43,10 +43,15 @@ mod freeze_authority_sample {
     #[instruction]
     #[freeze_exempt]
     pub fn initialize(
+        #[account(pda = literal("admin_config"))] admin_config: AccountWithMetadata,
+        #[account(signer)] caller: AccountWithMetadata,
         #[account(init, pda = literal("program_config"))] mut config: AccountWithMetadata,
     ) -> SpelResult {
         ProgramConfig::default().write_to(&mut config)?;
-        Ok(SpelOutput::execute(vec![config], vec![]))
+        Ok(SpelOutput::execute(
+            vec![admin_config, caller, config],
+            vec![],
+        ))
     }
 
     /// Auto-gated. Framework prepends `require_not_frozen`, so this
@@ -73,5 +78,4 @@ mod freeze_authority_sample {
         let _state = ProgramConfig::from_account(&config)?;
         Ok(SpelOutput::execute(vec![config], vec![]))
     }
-
 }

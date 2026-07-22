@@ -1,4 +1,4 @@
-use freeze_authority::require_not_frozen;
+use freeze_authority::{FreezeCandidate, require_not_frozen};
 use spel_framework::prelude::*;
 
 #[account_type]
@@ -55,7 +55,15 @@ mod freeze_authority_sample_manual {
         AdminConfig::bootstrap(&mut admin_config, AdminCandidate::Signer, &signer)?;
         FreezeConfig::bootstrap(&mut freeze_config, FreezeCandidate::Signer, &signer)?;
         ProgramConfig::default().write_to(&mut config)?;
-        Ok(SpelOutput::execute(vec![admin_config.account, freeze_config.account, config.account, signer.account], vec![]))
+        Ok(SpelOutput::execute(
+            vec![
+                admin_config.account,
+                freeze_config.account,
+                config.account,
+                signer.account,
+            ],
+            vec![],
+        ))
     }
 
     /// A representative gated instruction. Manual mode means the
