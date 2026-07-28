@@ -87,3 +87,21 @@ Either the current admin (per RFP F5) or the current freeze_authority self-renou
 
 **Renounce semantic (ADR-0007)**:
 `freeze_authority_renounce` vacates the freeze slot but is NOT terminal. Admin can re-populate via `freeze_authority_transfer` from the Renounced state. Distinct from admin-authority's terminal renounce — admin-authority has no higher authority to recover, freeze-authority has admin. Proposal line 56 called revoke "Permanent"; we deviate because admin should retain the capability to manage the slot's full lifecycle. The "no future freeze authority" commitment is recoverable by simply never calling `freeze_initialize` after admin is also renounced.
+
+**Embedded freeze config (ADR-0011)**:
+`FreezeConfig` can live inside a consumer account at a byte offset declared on the marker, `#[freeze_authority(freeze_config = config, offset = N)]`. Six management instructions take a trailing `offset: usize` filled by the framework at the dispatch call site, never by a caller. `freeze_initialize` is not emitted in embedded mode and takes no offset. Dedicated mode is the degenerate case offset 0, one code path. `FrozenAccountState` never embeds and stays offset free.
+
+**Born vacant**:
+An embedded freeze slot created without a bootstrap holds `AccountId::default()`, the vacant sentinel. It rejects every holder-path caller until the admin appoints a holder via `freeze_authority_transfer`. The appointment path and the renounce-recovery path are the same code. Distinct from admin's born renounced, which is permanent because admin has no higher authority.
+
+**Cross-marker bound arg (ADR-0012)**:
+`freeze_authority_transfer` and `freeze_authority_renounce` need admin's offset, which lives on the admin marker, not the freeze marker. The library declares `from = "admin_authority::offset"` in its bound_args metadata and the framework resolves the peer marker at the consumer's build, baking the value into the dispatch call as a literal. A missing peer marker or kwarg falls back to the declared default. A bound arg without a default makes both hard errors.
+
+**Caller-decodes contract (ADR-0012)**:
+A library method that reads peer state for an authorization decision takes the peer's decoded config by reference, `admin: Option<&AdminConfig>` for dual-path renounce, never the peer's account. The instruction body decodes at the top and passes the value in. This is what lets one shared account serve both roles without aliasing two borrows of one param.
+
+**Shared-account merge**:
+When admin and freeze embed into the same consumer account, a dual-role instruction's two role params resolve to one account. The framework lists it once in the IDL, enum, and validation, and the dispatcher clones the single transaction account into both positions of the precompiled call. The instruction body collapses its output through `post_state_pair`, one post-state per unique account id, satisfying the LEZ duplicate-account rule. Two embeds naming the same account at the same offset are a compile error.
+
+**Body-level admin check**:
+`freeze_authority_transfer` performs its strict admin check inside the body, decode at `admin_offset` then `assert_admin(caller)`. The `#[require_admin]` gate cannot serve it because gate attrs on library fns expand when the library compiles, before any consumer offset exists. `freeze_initialize` keeps its gate, it is dedicated-only and embedded mode skips it at discovery.

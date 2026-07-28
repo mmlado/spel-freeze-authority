@@ -23,6 +23,9 @@ extern crate self as freeze_authority;
 
 pub type FreezeCandidate = AuthorityCandidate;
 
+// Borsh-encoded size of FreezeConfig: 32-byte slot + 1 byte flag.
+pub const ENCODED_LEN: usize = 33;
+
 /// On-chain freeze authority state for a single program.
 ///
 /// Stored in the program's Config PDA at `(program_id, "freeze_config")`.
@@ -31,7 +34,7 @@ pub type FreezeCandidate = AuthorityCandidate;
 /// returns true when the holder is `AccountId::default()`; per ADR-0007 the
 /// Renounced state is recoverable by admin via `freeze_authority_transfer`.
 #[account_type]
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct FreezeConfig {
     slot: AuthoritySlot,
     /// Program-wide frozen flag. Toggled by `freeze_program` /
@@ -76,10 +79,47 @@ impl FreezeConfig {
         Self::try_from_slice(data).map_err(|_| FreezeError::DecodingFailed)
     }
 
+    /// Strict decode of the config's window at `offset`.
+    ///
+    /// Keeps the three-way discrimination: empty data means the
+    /// embedding account does not exist yet (`NotInitialized`);
+    /// non-empty data too short for the window is `SlotOutOfBounds`,
+    /// a layout error. Dedicated mode is the degenerate case
+    /// `offset = 0` over the Config PDA.
+    ///
+    /// # Errors
+    ///
+    /// `FreezeError::NotInitialized` on empty data,
+    /// `FreezeError::SlotOutOfBounds` when the window does not fit,
+    /// `FreezeError::DecodingFailed` when the flag byte is not a valid
+    /// boolean.
+    pub fn decode_at(data: &[u8], offset: usize) -> Result<Self, FreezeError> {
+        if data.is_empty() {
+            return Err(FreezeError::NotInitialized);
+        }
+        let slot = AuthoritySlot::read_at(data, offset)?;
+        let is_frozen = match data.get(offset + 32) {
+            Some(&0) => false,
+            Some(&1) => true,
+            Some(_) => return Err(FreezeError::DecodingFailed),
+            None => return Err(FreezeError::SlotOutOfBounds),
+        };
+        Ok(Self { slot, is_frozen })
+    }
+
     /// Loads config from an account's data field. Convenience wrapper over
     /// [`FreezeConfig::decode`].
     pub fn from_account(account: &AccountWithMetadata) -> Result<Self, FreezeError> {
         Self::decode(&account.account.data)
+    }
+
+    /// Loads the config from an account's data at `offset`. Convenience
+    /// wrapper over [`FreezeConfig::decode_at`].
+    pub fn from_account_at(
+        account: &AccountWithMetadata,
+        offset: usize,
+    ) -> Result<Self, FreezeError> {
+        Self::decode_at(&account.account.data, offset)
     }
 
     /// Sets `is_frozen` to `state`. Program-wide `true` blocks all
@@ -110,6 +150,29 @@ impl FreezeConfig {
         Ok(())
     }
 
+    /// Splices only the config's window at `offset` into the account's
+    /// data, leaving every surrounding byte untouched.
+    ///
+    /// # Errors
+    ///
+    /// `FreezeError::SlotOutOfBounds` when the window does not fit.
+    pub fn write_to_at(
+        &self,
+        account: &mut AccountWithMetadata,
+        offset: usize,
+    ) -> Result<(), FreezeError> {
+        let mut bytes: Vec<u8> = account.account.data.to_vec();
+        self.slot.write_at(&mut bytes, offset)?;
+        *bytes
+            .get_mut(offset + 32)
+            .ok_or(FreezeError::SlotOutOfBounds)?
+            = self.is_frozen as u8;
+        account.account.data = bytes
+            .try_into()
+            .map_err(|_| FreezeError::AccountDataTooLarge)?;
+        Ok(())
+    }
+
     /// Validates a candidate, builds a fresh config, and writes it to the
     /// PDA.
     ///
@@ -127,13 +190,34 @@ impl FreezeConfig {
         state.write_to(config_account)
     }
 
+    /// Validates a candidate, builds a fresh config, and splices it in
+    /// at `offset`. The embedded-mode bootstrap: the consumer's
+    /// account-creating instruction calls this after writing its own
+    /// state, so the slot is born initialized.
+    ///
+    /// # Errors
+    ///
+    /// Candidate validation errors, plus `SlotOutOfBounds` when the
+    /// account's data does not cover the window (write the full
+    /// consumer struct before bootstrapping).
+    pub fn bootstrap_at(
+        config_account: &mut AccountWithMetadata,
+        offset: usize,
+        new_admin: FreezeCandidate,
+        new_admin_account: &AccountWithMetadata,
+    ) -> Result<(), FreezeError> {
+        let resolved = new_admin.validate(new_admin_account)?;
+        let state = Self::initialize(resolved)?;
+        state.write_to_at(config_account, offset)
+    }
+
     /// Validates the incoming candidate and installs it as the new holder.
     ///
     /// No auth check on the caller. Candidate validation still runs so
     /// garbage input (default `AccountId`, undeployed PDA, mismatched
     /// address) is rejected here. Callers are responsible for gating who may
-    /// transfer (`freeze_authority_transfer` gates on admin via
-    /// `#[require_admin]`).
+    /// transfer (`freeze_authority_transfer` performs the strict admin
+    /// check in its body).
     pub fn transfer(
         &mut self,
         candidate: FreezeCandidate,
@@ -146,36 +230,48 @@ impl FreezeConfig {
     /// Zeros the freeze authority to `AccountId::default()`, the renounced
     /// sentinel.
     ///
-    /// No auth check. Callers are responsible for gating who may renounce.
-    /// `freeze_authority_renounce` gates dual-path (admin OR current holder)
-    /// per ADR-0004.
+    /// Dual-path auth per ADR-0004: passes when `admin` proves the caller
+    /// is the current admin, or when the caller is the current holder.
+    /// `None` means the admin config was absent or undecodable; the holder
+    /// arm still runs. The caller decodes admin state and passes the value
+    /// in (the caller-decodes contract, ADR-0012).
     pub fn renounce(
         &mut self,
-        admin_account: &AccountWithMetadata,
+        admin_config: Option<&AdminConfig>,
         current: &AccountWithMetadata,
     ) -> Result<(), FreezeError> {
-        let admin_ok = AdminConfig::from_account(admin_account)
-            .and_then(|c| c.assert_admin(current).map_err(Into::into))
-            .is_ok();
+        let admin_ok = admin_config.is_some_and(|a| a.assert_admin(current).is_ok());
         if !admin_ok && self.slot.assert(current).is_err() {
             return Err(FreezeError::NotAdminOrFreezeAuthority);
         }
+
         self.slot.renounce();
         Ok(())
     }
 
     /// Loads config from account, installs the validated candidate, writes back.
     ///
-    /// No auth check. `freeze_authority_transfer` gates on admin via
-    /// `#[require_admin`. Accepts a renounced starting state per ADR-0007.
+    /// No auth check. `freeze_authority_transfer` performs the strict
+    /// admin check in its body before calling this. Accepts a renounced
+    /// starting state per ADR-0007.
     pub fn perform_transfer(
         config_account: &mut AccountWithMetadata,
         candidate: FreezeCandidate,
         new_account: &AccountWithMetadata,
     ) -> Result<(), FreezeError> {
-        let mut state = Self::from_account(config_account)?;
+        Self::perform_transfer_at(config_account, 0, candidate, new_account)
+    }
+
+    /// Loads config from account, transfers admin, writes back.
+    pub fn perform_transfer_at(
+        config_account: &mut AccountWithMetadata,
+        offset: usize,
+        candidate: FreezeCandidate,
+        new_account: &AccountWithMetadata,
+    ) -> Result<(), FreezeError> {
+        let mut state = Self::from_account_at(config_account, offset)?;
         state.transfer(candidate, new_account)?;
-        state.write_to(config_account)
+        state.write_to_at(config_account, offset)
     }
 
     /// Loads config from account, renounces the slot, writes back.
@@ -183,13 +279,23 @@ impl FreezeConfig {
     /// Convenience workflow for callers that have already run their own
     /// auth check.
     pub fn perform_renounce(
-        admin_account: &AccountWithMetadata,
+        admin_config: Option<&AdminConfig>,
         current: &AccountWithMetadata,
         config_account: &mut AccountWithMetadata,
     ) -> Result<(), FreezeError> {
-        let mut state = Self::from_account(config_account)?;
-        state.renounce(admin_account, current)?;
-        state.write_to(config_account)
+        Self::perform_renounce_at(admin_config, config_account, 0, current)
+    }
+    
+    /// Loads config from account, renounce admin, writes back.
+    pub fn perform_renounce_at(
+        admin_config: Option<&AdminConfig>,
+        config_account: &mut AccountWithMetadata,
+        offset: usize,
+        current: &AccountWithMetadata,
+    ) -> Result<(), FreezeError> {
+        let mut state = Self::from_account_at(config_account, offset)?;
+        state.renounce(admin_config, current)?;
+        state.write_to_at(config_account, offset)
     }
 
     /// Loads config from account, sets `is_frozen = true`, writes back.
@@ -199,9 +305,20 @@ impl FreezeConfig {
         config_account: &mut AccountWithMetadata,
         current: &AccountWithMetadata,
     ) -> Result<(), FreezeError> {
-        let mut state = Self::from_account(config_account)?;
+        Self::perform_freeze_at(config_account, 0, current)
+    }
+
+    /// Loads config at `offset`, sets `is_frozen = true`, writes back.
+    /// 
+    /// Enforces the holder check via `set_is_frozen`.
+    pub fn perform_freeze_at(
+        config_account: &mut AccountWithMetadata,
+        offset: usize,
+        current: &AccountWithMetadata,
+    ) -> Result<(), FreezeError> {
+        let mut state = Self::from_account_at(config_account, offset)?;
         state.set_is_frozen(current, true)?;
-        state.write_to(config_account)
+        state.write_to_at(config_account, offset)
     }
 
     /// Loads config from account, sets `is_frozen = false`, writes back.
@@ -211,9 +328,20 @@ impl FreezeConfig {
         config_account: &mut AccountWithMetadata,
         current: &AccountWithMetadata,
     ) -> Result<(), FreezeError> {
-        let mut state = Self::from_account(config_account)?;
+        Self::perform_release_at(config_account, 0, current)
+    }
+
+    /// Loads config at `offset`, sets `is_frozen = false`, writes back.
+    /// 
+    /// Enforces the holder check via `set_is_frozen`.
+    pub fn perform_release_at(
+        config_account: &mut AccountWithMetadata,
+        offset: usize,
+        current: &AccountWithMetadata,
+    ) -> Result<(), FreezeError> {
+        let mut state = Self::from_account_at(config_account, offset)?;
         state.set_is_frozen(current, false)?;
-        state.write_to(config_account)
+        state.write_to_at(config_account, offset)
     }
 }
 
@@ -278,11 +406,10 @@ impl FrozenAccountState {
     /// rejected with `FreezeError::NotFreezeAuthority`.
     pub fn set_is_frozen(
         &mut self,
-        freeze_config: &AccountWithMetadata,
+        authority_state: &FreezeConfig,
         caller: &AccountWithMetadata,
         state: bool,
     ) -> Result<(), FreezeError> {
-        let authority_state = FreezeConfig::from_account(freeze_config)?;
         authority_state.assert(caller)?;
         self.is_frozen = state;
         Ok(())
@@ -292,12 +419,12 @@ impl FrozenAccountState {
     ///
     /// Enforces the holder check via `set_is_frozen`.
     pub fn perform_freeze(
-        freeze_config: &AccountWithMetadata,
+        authority_state: &FreezeConfig,
         config_account: &mut AccountWithMetadata,
         current: &AccountWithMetadata,
     ) -> Result<(), FreezeError> {
         let mut state = Self::from_account(config_account)?;
-        state.set_is_frozen(freeze_config, current, true)?;
+        state.set_is_frozen(authority_state, current, true)?;
         state.write_to(config_account)
     }
 
@@ -305,12 +432,12 @@ impl FrozenAccountState {
     ///
     /// Enforces the holder check via `set_is_frozen`.
     pub fn perform_release(
-        freeze_config: &AccountWithMetadata,
+        authority_state: &FreezeConfig,
         config_account: &mut AccountWithMetadata,
         current: &AccountWithMetadata,
     ) -> Result<(), FreezeError> {
         let mut state = Self::from_account(config_account)?;
-        state.set_is_frozen(freeze_config, current, false)?;
+        state.set_is_frozen(authority_state, current, false)?;
         state.write_to(config_account)
     }
 }
@@ -360,6 +487,10 @@ pub enum FreezeError {
     AccountFrozen,
     /// Encoded bytes exceed the account's max data length.
     AccountDataTooLarge,
+    /// An embedded-slot window `[offset..offset+32)` does not fit inside
+    /// the account's data. Layout error: the declared offset and the
+    /// account's actual size disagree.
+    SlotOutOfBounds,
 }
 
 impl core::fmt::Display for FreezeError {
@@ -372,11 +503,11 @@ impl core::fmt::Display for FreezeError {
             FreezeError::CandidateMismatch => write!(f, "candidate address mismatch"),
             FreezeError::NotFreezeAuthority => {
                 write!(f, "signer is not the current freeze authority")
-            }
+            },
             FreezeError::NotAdmin => write!(f, "signer is not the current admin"),
             FreezeError::NotAdminOrFreezeAuthority => {
                 write!(f, "signer is not the current admin or freeze authority")
-            }
+            },
             FreezeError::MissingSignature => write!(f, "freeze signature missing"),
             FreezeError::Renounced => write!(f, "freeze authority renounced"),
             FreezeError::AlreadyFrozen => write!(f, "program is already frozen"),
@@ -389,7 +520,8 @@ impl core::fmt::Display for FreezeError {
             FreezeError::AccountFrozen => write!(f, "account is frozen"),
             FreezeError::AccountDataTooLarge => {
                 write!(f, "FreezeConfig too large for account data")
-            }
+            },
+            FreezeError::SlotOutOfBounds => write!(f, "embedded slot window out of bounds"),
         }
     }
 }
@@ -411,6 +543,7 @@ impl From<AuthorityError> for FreezeError {
             AuthorityError::NotHolder => FreezeError::NotFreezeAuthority,
             AuthorityError::Renounced => FreezeError::Renounced,
             AuthorityError::MissingSignature => FreezeError::MissingSignature,
+            AuthorityError::SlotOutOfBounds => FreezeError::SlotOutOfBounds,
         }
     }
 }
@@ -428,6 +561,7 @@ impl From<AdminError> for FreezeError {
             AdminError::EncodingFailed => FreezeError::EncodingFailed,
             AdminError::DecodingFailed => FreezeError::DecodingFailed,
             AdminError::AccountDataTooLarge => FreezeError::AccountDataTooLarge,
+            AdminError::SlotOutOfBounds => FreezeError::SlotOutOfBounds,
         }
     }
 }
@@ -464,7 +598,6 @@ pub fn freeze_initialize(
     ))
 }
 
-#[require_admin]
 #[instruction]
 #[freeze_exempt]
 pub fn freeze_authority_transfer(
@@ -473,10 +606,17 @@ pub fn freeze_authority_transfer(
     #[account(signer)] caller: AccountWithMetadata,
     new_account: AccountWithMetadata,
     candidate: FreezeCandidate,
+    offset: usize,
+    admin_offset: usize,
 ) -> SpelResult {
-    FreezeConfig::perform_transfer(&mut freeze_config, candidate, &new_account)?;
+    let admin = AdminConfig::from_account_at(&admin_config, admin_offset)?;
+    admin.assert_admin(&caller)?;
+    FreezeConfig::perform_transfer_at(&mut freeze_config, offset, candidate, &new_account)?;
+    let mut accounts = post_state_pair(admin_config, freeze_config);
+    accounts.push(caller.account);
+    accounts.push(new_account.account);
     Ok(SpelOutput::execute(
-        vec![admin_config.account, freeze_config.account, caller.account],
+        accounts,
         vec![],
     ))
 }
@@ -487,10 +627,15 @@ pub fn freeze_authority_renounce(
     #[account(pda = literal("admin_config"))] admin_config: AccountWithMetadata,
     #[account(mut, pda = literal("freeze_config"))] mut freeze_config: AccountWithMetadata,
     #[account(signer)] caller: AccountWithMetadata,
+    offset: usize,
+    admin_offset: usize,
 ) -> SpelResult {
-    FreezeConfig::perform_renounce(&admin_config, &caller, &mut freeze_config)?;
+    let admin = AdminConfig::from_account_at(&admin_config, admin_offset).ok();
+    FreezeConfig::perform_renounce_at(admin.as_ref(), &mut freeze_config, offset, &caller)?;
+    let mut accounts = post_state_pair(admin_config, freeze_config);
+    accounts.push(caller.account);
     Ok(SpelOutput::execute(
-        vec![admin_config.account, freeze_config.account, caller.account],
+        accounts,
         vec![],
     ))
 }
@@ -505,8 +650,9 @@ pub fn freeze_program(
     #[account(mut, pda = literal("freeze_config"))] mut freeze_config: AccountWithMetadata,
     #[account(pda = [literal("frozen"), account("caller")])] _freeze_account: AccountWithMetadata,
     #[account(signer)] caller: AccountWithMetadata,
+    offset: usize,
 ) -> SpelResult {
-    FreezeConfig::perform_freeze(&mut freeze_config, &caller)?;
+    FreezeConfig::perform_freeze_at(&mut freeze_config, offset, &caller)?;
     Ok(SpelOutput::execute(
         vec![freeze_config.account, caller.account],
         vec![],
@@ -522,8 +668,9 @@ pub fn freeze_program(
 pub fn freeze_program_release(
     #[account(mut, pda = literal("freeze_config"))] mut freeze_config: AccountWithMetadata,
     #[account(signer)] caller: AccountWithMetadata,
+    offset: usize,
 ) -> SpelResult {
-    FreezeConfig::perform_release(&mut freeze_config, &caller)?;
+    FreezeConfig::perform_release_at(&mut freeze_config, offset, &caller)?;
     Ok(SpelOutput::execute(
         vec![freeze_config.account, caller.account],
         vec![],
@@ -544,9 +691,11 @@ pub fn freeze_account(
     #[account(mut, pda = [literal("frozen"), arg("target")])] mut frozen_pda: AccountWithMetadata,
     #[account(signer)] caller: AccountWithMetadata,
     target: [u8; 32],
+    offset: usize,
 ) -> SpelResult {
     let _ = target;
-    FrozenAccountState::perform_freeze(&freeze_config, &mut frozen_pda, &caller)?;
+    let authority = FreezeConfig::from_account_at(&freeze_config, offset)?;
+    FrozenAccountState::perform_freeze(&authority, &mut frozen_pda, &caller)?;
     Ok(SpelOutput::execute(
         vec![freeze_config.account, frozen_pda.account, caller.account],
         vec![],
@@ -565,13 +714,29 @@ pub fn freeze_account_release(
     #[account(mut, pda = [literal("frozen"), arg("target")])] mut frozen_pda: AccountWithMetadata,
     #[account(signer)] caller: AccountWithMetadata,
     target: [u8; 32],
+    offset: usize,
 ) -> SpelResult {
     let _ = target;
-    FrozenAccountState::perform_release(&freeze_config, &mut frozen_pda, &caller)?;
+    let authority = FreezeConfig::from_account_at(&freeze_config, offset)?;
+    FrozenAccountState::perform_release(&authority, &mut frozen_pda, &caller)?;
     Ok(SpelOutput::execute(
         vec![freeze_config.account, frozen_pda.account, caller.account],
         vec![],
     ))
+}
+
+/// Post-state pair for a dual-role fn: collapses to the written copy
+/// when both roles arrived as copies of one shared embedding account
+/// (LEZ rejects duplicate account ids in the output).
+fn post_state_pair(
+    read: AccountWithMetadata,
+    written: AccountWithMetadata,
+) -> Vec<Account> {
+    if read.account_id == written.account_id {
+        vec![written.account]
+    } else {
+        vec![read.account, written.account]
+    }
 }
 
 #[cfg(test)]
@@ -821,7 +986,9 @@ mod tests {
             slot: AuthoritySlot::initialize(authority.account_id).unwrap(),
             is_frozen: false,
         };
-        config.renounce(&admin, &authority).unwrap();
+        config
+            .renounce(AdminConfig::from_account(&admin).ok().as_ref(), &authority)
+            .unwrap();
         assert_eq!(
             config.assert(&authority).unwrap_err(),
             FreezeError::Renounced
@@ -926,7 +1093,8 @@ mod tests {
             slot: AuthoritySlot::initialize(auth.account_id).unwrap(),
             is_frozen: false,
         };
-        cfg.renounce(&admin, &auth).unwrap();
+        cfg.renounce(AdminConfig::from_account(&admin).ok().as_ref(), &auth)
+            .unwrap();
         assert_eq!(cfg.assert(&auth).unwrap_err(), FreezeError::Renounced);
     }
 
@@ -966,7 +1134,8 @@ mod tests {
             slot: AuthoritySlot::initialize(auth.account_id).unwrap(),
             is_frozen: false,
         };
-        cfg.renounce(&admin, &auth).unwrap();
+        cfg.renounce(AdminConfig::from_account(&admin).ok().as_ref(), &auth)
+            .unwrap();
         assert_eq!(
             cfg.set_is_frozen(&auth, true).unwrap_err(),
             FreezeError::Renounced
@@ -1068,7 +1237,12 @@ mod tests {
             is_frozen: false,
         };
         let mut config_account = config_account_with(&cfg);
-        FreezeConfig::perform_renounce(&admin, &auth, &mut config_account).unwrap();
+        FreezeConfig::perform_renounce(
+            AdminConfig::from_account(&admin).ok().as_ref(),
+            &auth,
+            &mut config_account,
+        )
+        .unwrap();
         let decoded = FreezeConfig::from_account(&config_account).unwrap();
         assert_eq!(decoded.assert(&auth).unwrap_err(), FreezeError::Renounced);
     }
@@ -1080,11 +1254,10 @@ mod tests {
             slot: AuthoritySlot::initialize(auth.account_id).unwrap(),
             is_frozen: false,
         };
-        let freeze_config = config_account_with(&cfg);
         let mut state = FrozenAccountState::default();
-        state.set_is_frozen(&freeze_config, &auth, true).unwrap();
+        state.set_is_frozen(&cfg, &auth, true).unwrap();
         assert!(state.is_frozen);
-        state.set_is_frozen(&freeze_config, &auth, false).unwrap();
+        state.set_is_frozen(&cfg, &auth, false).unwrap();
         assert!(!state.is_frozen);
     }
 
@@ -1096,30 +1269,26 @@ mod tests {
             slot: AuthoritySlot::initialize(auth.account_id).unwrap(),
             is_frozen: false,
         };
-        let freeze_config = config_account_with(&cfg);
         let mut state = FrozenAccountState::default();
         assert_eq!(
-            state
-                .set_is_frozen(&freeze_config, &other, true)
-                .unwrap_err(),
+            state.set_is_frozen(&cfg, &other, true).unwrap_err(),
             FreezeError::NotFreezeAuthority
         );
         assert!(!state.is_frozen);
     }
 
     #[test]
-    fn frozen_account_state_set_is_frozen_rejects_uninitialised_freeze_config() {
-        let caller = acct(1, true);
+    fn uninitialised_freeze_config_fails_decode_before_the_gate() {
+        // Caller-decodes contract: set_is_frozen now takes the decoded
+        // FreezeConfig, so the NotInitialized rejection fires at the decode
+        // the caller performs, before any per-account state is touched.
         let freeze_config = AccountWithMetadata {
             account: Account::default(),
             is_authorized: false,
             account_id: AccountId::new([9; 32]),
         };
-        let mut state = FrozenAccountState::default();
         assert_eq!(
-            state
-                .set_is_frozen(&freeze_config, &caller, true)
-                .unwrap_err(),
+            FreezeConfig::from_account(&freeze_config).unwrap_err(),
             FreezeError::NotInitialized
         );
     }
@@ -1131,13 +1300,12 @@ mod tests {
             slot: AuthoritySlot::initialize(auth.account_id).unwrap(),
             is_frozen: false,
         };
-        let freeze_config = config_account_with(&cfg);
         let mut per_account = AccountWithMetadata {
             account: Account::default(),
             is_authorized: false,
             account_id: AccountId::new([7; 32]),
         };
-        FrozenAccountState::perform_freeze(&freeze_config, &mut per_account, &auth).unwrap();
+        FrozenAccountState::perform_freeze(&cfg, &mut per_account, &auth).unwrap();
         let decoded = FrozenAccountState::from_account(&per_account).unwrap();
         assert!(decoded.is_frozen);
     }
@@ -1149,9 +1317,8 @@ mod tests {
             slot: AuthoritySlot::initialize(auth.account_id).unwrap(),
             is_frozen: false,
         };
-        let freeze_config = config_account_with(&cfg);
         let mut per_account = per_account_with(true);
-        FrozenAccountState::perform_release(&freeze_config, &mut per_account, &auth).unwrap();
+        FrozenAccountState::perform_release(&cfg, &mut per_account, &auth).unwrap();
         let decoded = FrozenAccountState::from_account(&per_account).unwrap();
         assert!(!decoded.is_frozen);
     }
@@ -1178,11 +1345,164 @@ mod tests {
             is_frozen: false,
         };
         let mut config_account = config_account_with(&cfg);
-        let err = FreezeConfig::perform_renounce(&admin, &stranger, &mut config_account)
-            .unwrap_err();
+        let err = FreezeConfig::perform_renounce(
+            AdminConfig::from_account(&admin).ok().as_ref(),
+            &stranger,
+            &mut config_account,
+        )
+        .unwrap_err();
         assert_eq!(err, FreezeError::NotAdminOrFreezeAuthority);
         // Slot untouched
         let decoded = FreezeConfig::from_account(&config_account).unwrap();
         assert!(decoded.assert(&auth).is_ok());
+    }
+
+    // Step-3 gate tests. Red until `require_not_frozen` parses the
+    // `offset` int kwarg; they pin the target behavior: one prologue
+    // shape, `from_account_at(&cfg, offset)`, offset defaulting to 0.
+
+    fn embedded_config_account(offset: usize, cfg: &FreezeConfig) -> AccountWithMetadata {
+        let mut data = vec![0xAA; offset]; // consumer prefix bytes
+        data.extend(borsh::to_vec(cfg).unwrap()); // slot + flag window
+        data.extend([0xBB; 7]); // consumer suffix bytes
+        AccountWithMetadata {
+            account: Account {
+                data: data.try_into().unwrap(),
+                ..Account::default()
+            },
+            is_authorized: false,
+            account_id: AccountId::new([9; 32]),
+        }
+    }
+
+    #[test]
+    fn gate_reads_frozen_flag_at_offset() {
+        #[require_not_frozen(freeze_config = cfg, freeze_account = pda, offset = 32)]
+        fn gated(cfg: AccountWithMetadata, pda: AccountWithMetadata) -> Result<(), SpelError> {
+            let _ = (&cfg, &pda);
+            Ok(())
+        }
+        let mut frozen = FreezeConfig::initialize(AccountId::new([1; 32])).unwrap();
+        frozen.is_frozen = true;
+        let cfg = embedded_config_account(32, &frozen);
+        let err = gated(cfg, acct(7, false)).unwrap_err();
+        assert!(
+            matches!(err, SpelError::Unauthorized { ref message } if message == "program is frozen")
+        );
+    }
+
+    #[test]
+    fn gate_passes_when_unfrozen_at_offset() {
+        #[require_not_frozen(freeze_config = cfg, freeze_account = pda, offset = 32)]
+        fn gated(cfg: AccountWithMetadata, pda: AccountWithMetadata) -> Result<(), SpelError> {
+            let _ = (&cfg, &pda);
+            Ok(())
+        }
+        let unfrozen = FreezeConfig::initialize(AccountId::new([1; 32])).unwrap();
+        let cfg = embedded_config_account(32, &unfrozen);
+        assert!(gated(cfg, acct(7, false)).is_ok());
+    }
+
+    #[test]
+    fn gate_without_offset_reads_dedicated_layout() {
+        #[require_not_frozen(freeze_config = cfg, freeze_account = pda)]
+        fn gated(cfg: AccountWithMetadata, pda: AccountWithMetadata) -> Result<(), SpelError> {
+            let _ = (&cfg, &pda);
+            Ok(())
+        }
+        let mut frozen = FreezeConfig::initialize(AccountId::new([1; 32])).unwrap();
+        frozen.is_frozen = true;
+        let cfg = config_account_with(&frozen);
+        let err = gated(cfg, acct(7, false)).unwrap_err();
+        assert!(
+            matches!(err, SpelError::Unauthorized { ref message } if message == "program is frozen")
+        );
+    }
+
+    #[test]
+    fn gate_per_account_arm_is_offset_free() {
+        // Program-wide unfrozen at offset 32, but the caller's per-account
+        // PDA is frozen. The per-account arm must still fire in embedded
+        // mode: FrozenAccountState never embeds, its read takes no offset.
+        #[require_not_frozen(freeze_config = cfg, freeze_account = pda, offset = 32)]
+        fn gated(cfg: AccountWithMetadata, pda: AccountWithMetadata) -> Result<(), SpelError> {
+            let _ = (&cfg, &pda);
+            Ok(())
+        }
+        let unfrozen = FreezeConfig::initialize(AccountId::new([1; 32])).unwrap();
+        let cfg = embedded_config_account(32, &unfrozen);
+        let err = gated(cfg, per_account_with(true)).unwrap_err();
+        assert!(
+            matches!(err, SpelError::Unauthorized { ref message } if message == "account is frozen")
+        );
+    }
+
+    #[test]
+    fn renounce_shared_account_emits_single_post_state() {
+        // The same-account cell, called exactly as the dispatcher will
+        // call it after the framework merge: one consumer account cloned
+        // into both role positions, offsets baked as literals. LEZ
+        // accepts exactly one post-state per transaction account, so the
+        // output must collapse the two copies to one entry.
+        let caller = acct(1, true); // freeze holder signs
+        // Consumer layout: 32 prefix bytes, admin slot at 32, freeze at 64.
+        let mut data = vec![0xAA; 32];
+        let admin_cfg = AdminConfig::initialize(AccountId::new([2; 32])).unwrap();
+        data.extend(admin_cfg.encode().unwrap());
+        let freeze_cfg = FreezeConfig::initialize(caller.account_id).unwrap();
+        data.extend(borsh::to_vec(&freeze_cfg).unwrap());
+        let shared = AccountWithMetadata {
+            account: Account {
+                data: data.try_into().unwrap(),
+                ..Account::default()
+            },
+            is_authorized: false,
+            account_id: AccountId::new([9; 32]),
+        };
+        let out = freeze_authority_renounce(shared.clone(), shared, caller, 64, 32).unwrap();
+        assert_eq!(out.post_states.len(), 2);
+    }
+
+    #[test]
+    fn transfer_shared_account_emits_single_post_state() {
+        // Same-account cell for the admin-only path: the caller is the
+        // admin read from the shared account's admin window.
+        let caller = acct(2, true); // admin signs
+        let new_holder = acct(3, true);
+        let mut data = vec![0xAA; 32];
+        let admin_cfg = AdminConfig::initialize(caller.account_id).unwrap();
+        data.extend(admin_cfg.encode().unwrap());
+        let freeze_cfg = FreezeConfig::initialize(AccountId::new([1; 32])).unwrap();
+        data.extend(borsh::to_vec(&freeze_cfg).unwrap());
+        let shared = AccountWithMetadata {
+            account: Account {
+                data: data.try_into().unwrap(),
+                ..Account::default()
+            },
+            is_authorized: false,
+            account_id: AccountId::new([9; 32]),
+        };
+        let out = freeze_authority_transfer(
+            shared.clone(),
+            shared,
+            caller,
+            new_holder,
+            FreezeCandidate::Signer,
+            64,
+            32,
+        )
+        .unwrap();
+        assert_eq!(out.post_states.len(), 3);
+    }
+
+    #[test]
+    fn renounce_distinct_accounts_keeps_both_post_states() {
+        let caller = acct(1, true);
+        let admin_account = admin_account_with(2);
+        let freeze_cfg = FreezeConfig::initialize(caller.account_id).unwrap();
+        let freeze_account = config_account_with(&freeze_cfg);
+        let out =
+            freeze_authority_renounce(admin_account, freeze_account, caller, 0, 0).unwrap();
+        assert_eq!(out.post_states.len(), 3);
     }
 }

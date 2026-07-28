@@ -4,6 +4,7 @@ members = [
     "freeze-authority",
     "freeze-authority-macros",
     "freeze-authority-sample",
+    "freeze-authority-sample-embedded",
 ]
 resolver = "2"
 

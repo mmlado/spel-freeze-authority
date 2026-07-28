@@ -10,12 +10,44 @@ Consumers can name their own params freely. A gated instruction with `#[account(
 
 The freeze authority lifecycle is governed by the admin from [spel-admin-authority](https://github.com/mmlado/spel-admin-authority) (RFP-001). The dependency is hard: `freeze_initialize` requires the admin's signature. Consumer programs must list both `freeze-authority` and `admin-authority` as direct dependencies. The framework discovers extensions in direct dependencies only, never transitively.
 
+Since M2.5 the freeze state can live inside one of the consumer's own accounts instead of a dedicated PDA, sharing that account with the consumer's state and the admin slot. See the embedded mode section below.
+
+## Embedded mode
+
+Declared program-wide on the marker, in lockstep with admin-authority's embedded mode:
+
+```rust
+#[account_type]
+pub struct ProgramConfig {
+    pub value: u64,            // bytes 0..8
+    pub padding: [u8; 24],     // bytes 8..32
+    pub admin: AdminConfig,    // bytes 32..64
+    pub freeze: FreezeConfig,  // bytes 64..97
+}
+
+#[lez_program]
+#[admin_authority(admin_config = config, offset = 32)]
+#[freeze_authority(freeze_config = config, offset = 64)]
+mod my_program { ... }
+```
+
+What changes versus dedicated mode:
+
+- **No `freeze_initialize`.** The slot is born vacant: the consumer's account-creating instruction writes the struct and the admin appoints the first holder via `freeze_authority_transfer`, the same path that repopulates a renounced slot. There is no front-running window because there is no initializer to race.
+- **One account per transaction.** When admin and freeze share the embedding account, the framework merges the two role params into one transaction account and the library emits exactly one post-state for it. The IDL lists the shared account once.
+- **Admin's location travels by marker.** `freeze_authority_transfer` and `freeze_authority_renounce` read admin state at the offset declared on the admin marker. The framework resolves it at the consumer's build (a cross-marker bound arg, [ADR-0012](docs/adr/0012-cross-marker-bound-args.md)) and bakes it into the dispatcher as a literal.
+- **No offset is ever in a transaction.** All offsets compile into the program. Changing one changes the bytecode, which on LEZ is a different program.
+- **Dedicated mode is untouched.** Internally it is the degenerate case offset 0, and the dedicated dry-run remains byte-identical to the M2 pin.
+
+Design records: [ADR-0011](docs/adr/0011-embedded-freeze-config.md) (embedded freeze config), [ADR-0012](docs/adr/0012-cross-marker-bound-args.md) (cross-marker bound args). Walkthrough: `scripts/dry-run-embedded.sh`, expected output in [docs/dry-run-embedded-output.txt](docs/dry-run-embedded-output.txt).
+
 ## Workspace
 
 - `freeze-authority` is the library crate with the seven management instructions and the on-chain state types.
 - `freeze-authority-macros` holds the proc-macro attributes.
 - `freeze-authority-sample` is a consumer program using auto mode.
 - `freeze-authority-sample-manual` is a consumer program using manual mode.
+- `freeze-authority-sample-embedded` is a consumer program with admin and freeze state embedded in one shared account.
 
 ## Documentation
 
@@ -24,8 +56,9 @@ The freeze authority lifecycle is governed by the admin from [spel-admin-authori
 - [docs/authority-lifecycle.md](docs/authority-lifecycle.md) describes the state machines and transitions.
 - [docs/adr/](docs/adr/) records the design decisions and their deviations from the proposal.
 - [docs/dry-run-output.txt](docs/dry-run-output.txt) is a captured CLI dry-run across the auto-gated consumer instruction and every freeze management instruction. Regenerate with `scripts/dry-run.sh` after any change to the sample or the framework.
+- [docs/dry-run-embedded-output.txt](docs/dry-run-embedded-output.txt) is the same capture for the embedded sample, showing the shared account appearing once per transaction. Regenerate with `scripts/dry-run-embedded.sh`.
 
-The framework-side extension mechanism (discovery, injection, auto-wrap) lives in the [spel fork](https://github.com/mmlado/spel) on the `feat/wrap_instructions` branch.
+The framework-side extension mechanism (discovery, injection, auto-wrap, cross-marker bound args, the shared-account merge) lives in the [spel fork](https://github.com/mmlado/spel) on the `feat/admin_authority_m2_5` branch.
 
 ## Dependencies
 
@@ -33,8 +66,8 @@ The three cross-repo dependencies are pinned to exact revs so the review surface
 
 | Dep | Repo | Branch | Rev |
 | --- | --- | --- | --- |
-| `spel-framework` | [mmlado/spel](https://github.com/mmlado/spel) | `feat/wrap_instructions_m2` | `c701b78` |
-| `admin-authority` | [mmlado/spel-admin-authority](https://github.com/mmlado/spel-admin-authority) | `m2_freeze_m2` | `d92f63d` |
-| `authority` (`spel-authority`) | [mmlado/spel-authority](https://github.com/mmlado/spel-authority) | `freeze_m2` | `b106e00` |
+| `spel-framework` | [mmlado/spel](https://github.com/mmlado/spel) | `feat/admin_authority_m2_5` | `752d23b` |
+| `admin-authority` | [mmlado/spel-admin-authority](https://github.com/mmlado/spel-admin-authority) | `m2_5` | `3cafbd7` |
+| `authority` (`spel-authority`) | [mmlado/spel-authority](https://github.com/mmlado/spel-authority) | `m2_5` | `8a20fe0` |
 
 Bumping any of these requires updating the `rev` field in all Cargo.toml files that reference the dep (`freeze-authority/`, `freeze-authority-sample/`, `freeze-authority-sample-manual/`) plus this table.

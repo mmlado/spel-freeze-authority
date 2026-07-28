@@ -10,6 +10,16 @@ pub fn freeze_authority(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 
+/// Gate: rejects when the program-wide `is_frozen` flag or the caller's
+/// per-account frozen PDA is set.
+///
+/// Kwargs, all optional: `freeze_config = <param>` and
+/// `freeze_account = <param>` rename the accounts the gate reads,
+/// `caller = <param>` is accepted for parity and unused,
+/// `offset = <int>` locates the config window inside the embedding
+/// account. Offset defaults to 0, the dedicated layout, and is only
+/// ever framework-stamped in embedded mode. The per-account read is
+/// offset-free, `FrozenAccountState` never embeds.
 #[proc_macro_attribute]
 pub fn require_not_frozen(attr: TokenStream, item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(
@@ -18,8 +28,24 @@ pub fn require_not_frozen(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut config_ident = format_ident!("freeze_config");
     let mut per_account_ident = format_ident!("freeze_account");
+    let mut offset: usize = 0;
 
     for pair in args {
+        if pair.path.is_ident("offset") {
+            let Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Int(i), ..
+            }) = &pair.value
+            else {
+                return syn::Error::new_spanned(&pair.value, "offset must be an integer literal")
+                    .to_compile_error()
+                    .into();
+            };
+            offset = match i.base10_parse::<usize>() {
+                Ok(v) => v,
+                Err(e) => return e.to_compile_error().into(),
+            };
+            continue;
+        }
         let value_ident = match &pair.value {
             Expr::Path(p) if p.path.get_ident().is_some() => p.path.get_ident().unwrap().clone(),
             other => {
@@ -38,7 +64,7 @@ pub fn require_not_frozen(attr: TokenStream, item: TokenStream) -> TokenStream {
         } else {
             return syn::Error::new_spanned(
                 &pair.path,
-                "unknown key; expected `freeze_config` or `freeze_account` or `caller`",
+                "unknown key; expected `freeze_config` or `freeze_account` or `caller` or `offset`",
             )
             .to_compile_error()
             .into();
@@ -49,7 +75,7 @@ pub fn require_not_frozen(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let prologue: syn::Stmt = parse_quote! {{
         // Program-wide gate: strict decode; missing config = NotInitialized.
-        let __freeze_cfg = ::freeze_authority::FreezeConfig::from_account(&#config_ident)?;
+        let __freeze_cfg = ::freeze_authority::FreezeConfig::from_account_at(&#config_ident, #offset)?;
         if __freeze_cfg.is_frozen {
             return Err(::freeze_authority::FreezeError::Frozen.into());
         }
