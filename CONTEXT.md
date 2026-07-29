@@ -13,7 +13,7 @@ The single `AccountId` stored in the `admin_config` PDA owned by the `admin-auth
 _See_: [admin-authority CONTEXT](https://github.com/mmlado/spel-admin-authority/blob/main/CONTEXT.md)
 
 **Freeze authority**:
-The single `AccountId` held in `FreezeConfig.slot` (a `authority::AuthoritySlot`), authorized to flip the program-wide frozen state and the per-account frozen state. Set at `freeze_initialize` (self-elected to the admin). Replaceable via `freeze_authority_transfer` (dual-path: admin or current freeze authority). Vacatable via `freeze_authority_renounce` (dual-path; recoverable by admin per ADR-0007, so not "permanent" — see below).
+The single `AccountId` held in `FreezeConfig.slot` (a `authority::AuthoritySlot`), authorized to flip the program-wide frozen state and the per-account frozen state. Set at `freeze_initialize` (self-elected to the admin). Replaceable via `freeze_authority_transfer` (admin only). Vacatable via `freeze_authority_renounce` (dual-path: admin or current holder; recoverable by admin per ADR-0007, so not "permanent" — see below).
 _Avoid_: pauser (ambiguous with LEZ vocabulary), freezer, "set_freeze_authority" or "revoke_freeze_authority" (proposal names; renamed for verb-style consistency with admin-authority)
 
 **Freeze Config PDA**:

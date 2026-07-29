@@ -67,7 +67,7 @@ The three cross-repo dependencies are pinned to exact revs so the review surface
 | Dep | Repo | Branch | Rev |
 | --- | --- | --- | --- |
 | `spel-framework` | [mmlado/spel](https://github.com/mmlado/spel) | `feat/admin_authority_m2_5` | `752d23b` |
-| `admin-authority` | [mmlado/spel-admin-authority](https://github.com/mmlado/spel-admin-authority) | `m2_5` | `3cafbd7` |
+| `admin-authority` | [mmlado/spel-admin-authority](https://github.com/mmlado/spel-admin-authority) | `m2_5` | `91eb15a` |
 | `authority` (`spel-authority`) | [mmlado/spel-authority](https://github.com/mmlado/spel-authority) | `m2_5` | `8a20fe0` |
 
 Bumping any of these requires updating the `rev` field in all Cargo.toml files that reference the dep (`freeze-authority/`, `freeze-authority-sample/`, `freeze-authority-sample-manual/`) plus this table.

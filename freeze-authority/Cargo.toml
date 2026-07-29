@@ -52,6 +52,6 @@ default = 0
 borsh = { version = "1", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 spel-framework = { git = "https://github.com/mmlado/spel.git", rev = "752d23b01f3d84c03656445d9de43335b7bc780d" }
-admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", rev = "3cafbd74d5af6ba6f76ddf3e529bdb30701c739a" }
+admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", rev = "91eb15a50714b40f357002058eb0ed00e9c72add" }
 freeze-authority-macros = { path = "../freeze-authority-macros" }
 authority = { git = "https://github.com/mmlado/spel-authority.git", rev = "8a20fe068816d6a21c19b0685bf74530e6217c75", package = "spel-authority" }
