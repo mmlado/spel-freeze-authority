@@ -41,6 +41,16 @@ What changes versus dedicated mode:
 
 Design records: [ADR-0011](docs/adr/0011-embedded-freeze-config.md) (embedded freeze config), [ADR-0012](docs/adr/0012-cross-marker-bound-args.md) (cross-marker bound args). Walkthrough: `scripts/dry-run-embedded.sh`, expected output in [docs/dry-run-embedded-output.txt](docs/dry-run-embedded-output.txt).
 
+## Transaction size overhead
+
+Measured from the committed dry-run captures ([docs/dry-run-output.txt](docs/dry-run-output.txt), [docs/dry-run-embedded-output.txt](docs/dry-run-embedded-output.txt)).
+
+Dedicated mode: the auto-wrap gate adds two accounts to a gated transaction, the `freeze_config` PDA (32 byte id in the message, 33 byte pre-state in the witness) and the caller's per-account `freeze_account` PDA (32 byte id, 1 byte pre-state once created). In the captures the gated `update_value` carries 4 accounts while the exempt `read_value` carries 1.
+
+Embedded mode: `freeze_config` rides inside the consumer's own account, so the gate adds one account (`freeze_account`) and the freeze state adds 33 bytes to the embedding account's data. Management instructions that read admin state also drop the dedicated `admin_config` account when admin embeds in the same account: `freeze_authority_renounce` carries 3 accounts in dedicated mode and 2 in embedded mode.
+
+Instruction data is unchanged by the gates in both modes. The 132 byte data on `freeze_account` and `freeze_account_release` is the `target` argument encoding (risc0 serde encodes `[u8; 32]` as 32 words), unrelated to the gate.
+
 ## Workspace
 
 - `freeze-authority` is the library crate with the seven management instructions and the on-chain state types.
@@ -70,4 +80,8 @@ The three cross-repo dependencies are pinned to exact revs so the review surface
 | `admin-authority` | [mmlado/spel-admin-authority](https://github.com/mmlado/spel-admin-authority) | `m2_5` | `91eb15a` |
 | `authority` (`spel-authority`) | [mmlado/spel-authority](https://github.com/mmlado/spel-authority) | `m2_5` | `8a20fe0` |
 
-Bumping any of these requires updating the `rev` field in all Cargo.toml files that reference the dep (`freeze-authority/`, `freeze-authority-sample/`, `freeze-authority-sample-manual/`) plus this table.
+Bumping any of these requires updating the `rev` field in all Cargo.toml files that reference the dep (`freeze-authority/`, `freeze-authority-sample/`, `freeze-authority-sample-manual/`, `freeze-authority-sample-embedded/`) plus this table.
+
+## Support
+
+Clarification questions and in-scope fixes are covered for 90 days after milestone approval. Platform upgrades past the pinned LEZ rev are new scope.
