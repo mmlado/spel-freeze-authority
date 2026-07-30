@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [m3, main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Formatting
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets
+      - name: Tests, IDL pins included
+        run: RISC0_DEV_MODE=1 cargo test --workspace
+
+  dry-run:
+    name: Dry-run byte compare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect dry-run scripts
+        id: scripts
+        run: |
+          if ls scripts/dry-run*.sh >/dev/null 2>&1; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.scripts.outputs.present == 'true'
+      - uses: Swatinem/rust-cache@v2
+        if: steps.scripts.outputs.present == 'true'
+        with:
+          prefix-key: dry-run
+      - name: Locate the pinned framework rev
+        if: steps.scripts.outputs.present == 'true'
+        id: rev
+        run: |
+          rev=$(grep -rhoP 'github.com/mmlado/spel(\.git)?", rev = "\K[0-9a-f]+' \
+            --include=Cargo.toml . | head -1)
+          echo "rev=$rev" >> "$GITHUB_OUTPUT"
+      - name: Check out the framework at the pin
+        if: steps.scripts.outputs.present == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: mmlado/spel
+          ref: ${{ steps.rev.outputs.rev }}
+          path: framework-pin
+      - name: Byte-compare every capture
+        if: steps.scripts.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          for script in scripts/dry-run*.sh; do
+            name=$(basename "$script" .sh)
+            expected="docs/${name}-output.txt"
+            bash "$script" "$PWD/framework-pin" > /tmp/capture.txt 2>&1
+            diff "$expected" /tmp/capture.txt
+            echo "$name matches $expected"
+          done
