@@ -2,7 +2,9 @@
 name = "freeze-authority"
 version = "0.1.0"
 edition.workspace = true
-lints.workspace = true
+
+[lints]
+workspace = true
 
 [package.metadata.spel]
 extension_attr = "freeze_authority"
@@ -55,3 +57,6 @@ spel-framework = { git = "https://github.com/mmlado/spel.git", rev = "86fb55e8d1
 admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", rev = "90b503da538c248edfc872af46a770a456b63089" }
 freeze-authority-macros = { path = "../freeze-authority-macros" }
 authority = { git = "https://github.com/mmlado/spel-authority.git", rev = "638506b96d50b043c0809735d4257017b2abdaf3", package = "spel-authority" }
+
+[dev-dependencies]
+spel-framework-core = { git = "https://github.com/mmlado/spel.git", rev = "86fb55e8d174a736cac40d20bc94a6d45df372d6", features = ["idl-gen"] }
