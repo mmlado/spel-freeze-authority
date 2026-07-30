@@ -1563,6 +1563,9 @@ mod tests {
             "frozen account must be rejected"
         );
         FrozenAccountState::perform_release(&freeze_cfg, &mut pda, &holder).expect("release");
-        assert!(gated(cfg_account, pda).is_ok(), "released account must pass");
+        assert!(
+            gated(cfg_account, pda).is_ok(),
+            "released account must pass"
+        );
     }
 }
