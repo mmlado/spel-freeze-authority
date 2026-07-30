@@ -85,3 +85,7 @@ Bumping any of these requires updating the `rev` field in all Cargo.toml files t
 ## Support
 
 Clarification questions and in-scope fixes are covered for 90 days after milestone approval. Platform upgrades past the pinned LEZ rev are new scope.
+
+## License
+
+Dual-licensed under [MIT](LICENSE-MIT) and [Apache 2.0](LICENSE-APACHE2) at the consumer's option.
