@@ -1587,11 +1587,10 @@ mod tests {
             Ok(())
         }
 
-        let specs = 
-            spel_framework_core::extension::read_inject_specs(std::path::Path::new(env!(
-                "CARGO_MANIFEST_DIR"
-            )))
-            .expect("inject metadata must parse");
+        let specs = spel_framework_core::extension::read_inject_specs(std::path::Path::new(env!(
+            "CARGO_MANIFEST_DIR"
+        )))
+        .expect("inject metadata must parse");
         let mut declared: Vec<&str> = specs
             .iter()
             .flat_map(|s| s.accounts.iter().map(|a| a.role.as_str()))
@@ -1601,6 +1600,6 @@ mod tests {
             declared,
             vec!["caller", "freeze_account", "freeze_config"],
             "manifest inject accounts drifted from the wrapper's kwarg set"
-        );  
+        );
     }
 }
