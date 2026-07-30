@@ -44,6 +44,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: spel-freeze-authority
+      - name: Prefetch dependency sources (discovery reads git checkouts offline)
+        run: cargo fetch
       - name: Formatting
         run: cargo fmt --check
       - name: Clippy
