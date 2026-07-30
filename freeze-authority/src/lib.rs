@@ -1507,4 +1507,62 @@ mod tests {
         let out = freeze_authority_renounce(admin_account, freeze_account, caller, 0, 0).unwrap();
         assert_eq!(out.post_states.len(), 3);
     }
+
+    // Proposal scenario: initialization without freeze authority, the
+    // admin signature requirement rejects everyone else (ADR-0006).
+    #[test]
+    fn freeze_initialize_rejects_non_admin_caller() {
+        let admin_config = admin_account_with(1);
+        let non_admin = acct(2, true);
+        let freeze_config = acct(9, false);
+        let err = freeze_initialize(admin_config, non_admin, freeze_config).unwrap_err();
+        assert!(
+            matches!(err, SpelError::Unauthorized { ref message } if message.contains("not the current admin"))
+        );
+    }
+
+    // Proposal scenario: set_freeze_authority rejection for a non-admin
+    // caller. The strict body check fires before any slot write.
+    #[test]
+    fn freeze_authority_transfer_rejects_non_admin_caller() {
+        let admin_config = admin_account_with(1);
+        let non_admin = acct(2, true);
+        let freeze_cfg = FreezeConfig::initialize(AccountId::new([3; 32])).unwrap();
+        let freeze_account = config_account_with(&freeze_cfg);
+        let new_holder = acct(4, true);
+        let err = freeze_authority_transfer(
+            admin_config,
+            freeze_account,
+            non_admin,
+            new_holder,
+            FreezeCandidate::Signer,
+            0,
+            0,
+        )
+        .unwrap_err();
+        assert!(
+            matches!(err, SpelError::Unauthorized { ref message } if message.contains("not the current admin"))
+        );
+    }
+
+    // Proposal scenario: freeze_account(target, false) and subsequent
+    // gated-call success, as one round-trip through the real gate.
+    #[test]
+    fn released_account_passes_the_gate_again() {
+        #[require_not_frozen(freeze_config = cfg, freeze_account = pda)]
+        fn gated(cfg: AccountWithMetadata, pda: AccountWithMetadata) -> Result<(), SpelError> {
+            let _ = (&cfg, &pda);
+            Ok(())
+        }
+        let holder = acct(1, true);
+        let freeze_cfg = FreezeConfig::initialize(holder.account_id).unwrap();
+        let cfg_account = config_account_with(&freeze_cfg);
+        let mut pda = per_account_with(true);
+        assert!(
+            gated(cfg_account.clone(), pda.clone()).is_err(),
+            "frozen account must be rejected"
+        );
+        FrozenAccountState::perform_release(&freeze_cfg, &mut pda, &holder).expect("release");
+        assert!(gated(cfg_account, pda).is_ok(), "released account must pass");
+    }
 }
