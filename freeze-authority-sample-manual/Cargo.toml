@@ -2,7 +2,9 @@
 name = "freeze-authority-sample-manual"
 version = "0.1.0"
 edition.workspace = true
-lints.workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
 borsh = { version = "1", features = ["derive"] }
