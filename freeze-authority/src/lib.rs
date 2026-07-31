@@ -202,10 +202,10 @@ impl FreezeConfig {
     pub fn bootstrap_at(
         config_account: &mut AccountWithMetadata,
         offset: usize,
-        new_admin: FreezeCandidate,
-        new_admin_account: &AccountWithMetadata,
+        candidate: FreezeCandidate,
+        new_account: &AccountWithMetadata,
     ) -> Result<(), FreezeError> {
-        let resolved = new_admin.validate(new_admin_account)?;
+        let resolved = candidate.validate(new_account)?;
         let state = Self::initialize(resolved)?;
         state.write_to_at(config_account, offset)
     }
