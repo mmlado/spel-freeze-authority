@@ -1,0 +1,21 @@
+[package]
+name = "consumer-fixture-guest"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[[bin]]
+name = "consumer_fixture"
+path = "src/bin/consumer_fixture.rs"
+
+[dependencies]
+spel-framework = { git = "https://github.com/mmlado/spel.git", branch = "feat/admin_authority_m3" }
+admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", branch = "m3" }
+freeze-authority = { git = "https://github.com/mmlado/spel-freeze-authority.git", branch = "m3" }
+nssa_core = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", tag = "v0.2.0", package = "lee_core" }
+risc0-zkvm = { version = "=3.0.5", features = ["std"] }
+serde = { version = "1.0", features = ["derive"] }
+borsh = "1.5"
+ruint = "=1.17.0"

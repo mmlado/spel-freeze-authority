@@ -86,3 +86,20 @@ jobs:
             diff "$expected" /tmp/capture.txt
             echo "$name matches $expected"
           done
+
+  consumer-check:
+    name: Consumer fixture host check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ci/consumer-fixture/guest
+      # A realistic downstream lockfile pulls the arkworks stack. The host
+      # check of the guest crate is the proven trigger surface for the
+      # queued-lexer-diagnostic class (prefix `Fp` is unknown).
+      - name: Prefetch dependency sources
+        run: cargo fetch --manifest-path ci/consumer-fixture/guest/Cargo.toml
+      - name: Check the consumer fixture
+        run: cargo check --manifest-path ci/consumer-fixture/guest/Cargo.toml
