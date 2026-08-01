@@ -17,7 +17,7 @@ SPEL_REPO="${1:-$(dirname "$0")/../../spel}"
 SAMPLE_SRC="$(dirname "$0")/../freeze-authority-sample-embedded/src/main.rs"
 PROG_ID="$(printf 'ab%.0s' {1..32})"          # placeholder, fine for dry-run
 CALLER="$(printf '11%.0s' {1..32})"
-NEW_ADMIN="$(printf '22%.0s' {1..32})"
+NEW_ACCOUNT="$(printf '22%.0s' {1..32})"
 HOLDER="$(printf '33%.0s' {1..32})"
 TARGET="$(printf '44%.0s' {1..32})"
 IDL="$(mktemp --suffix .idl.json)"
@@ -41,7 +41,7 @@ run update-value --caller "$CALLER" --new-value 42
 run read-value
 run withdraw --caller "$CALLER"
 
-run admin-transfer --caller "$CALLER" --new-admin-account "$NEW_ADMIN" --new-admin Signer
+run admin-transfer --caller "$CALLER" --new-account "$NEW_ACCOUNT" --candidate Signer
 run freeze-authority-transfer --caller "$CALLER" --new-account "$HOLDER" --candidate Signer
 run freeze-program --caller "$HOLDER"
 run freeze-program-release --caller "$HOLDER"

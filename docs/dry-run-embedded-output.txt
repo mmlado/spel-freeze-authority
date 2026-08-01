@@ -86,7 +86,7 @@ Signers:
 ================
 Dry run complete — not submitted.
 
-── admin-transfer --caller 1111111111111111111111111111111111111111111111111111111111111111 --new-admin-account 2222222222222222222222222222222222222222222222222222222222222222 --new-admin Signer ──────────────────────────────
+── admin-transfer --caller 1111111111111111111111111111111111111111111111111111111111111111 --new-account 2222222222222222222222222222222222222222222222222222222222222222 --candidate Signer ──────────────────────────────
 📋 Instruction: admin_transfer
 
 === Dry Run ===
@@ -97,10 +97,10 @@ Accounts:
   PDA config → 3oLE2nK8zsrUzkNDfK3LqFuLidpchRMPoytsmbcHFQwY [writable]
     seeds: [program_id, "program_config"]
   caller → 0x1111111111111111111111111111111111111111111111111111111111111111 [signer]
-  new_admin_account → 0x2222222222222222222222222222222222222222222222222222222222222222
+  new_account → 0x2222222222222222222222222222222222222222222222222222222222222222
 
 Arguments:
-  --new-admin Signer
+  --candidate Signer
 
 Instruction data: 0x0400000000000000
 
