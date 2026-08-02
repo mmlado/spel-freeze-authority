@@ -33,7 +33,8 @@ pub fn require_not_frozen(attr: TokenStream, item: TokenStream) -> TokenStream {
     for pair in args {
         if pair.path.is_ident("offset") {
             let Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Int(i), ..
+                lit: syn::Lit::Int(i),
+                ..
             }) = &pair.value
             else {
                 return syn::Error::new_spanned(&pair.value, "offset must be an integer literal")

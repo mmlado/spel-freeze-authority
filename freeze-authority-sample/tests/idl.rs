@@ -118,11 +118,7 @@ fn auto_sample_idl_pins_gate_shape() {
         .iter()
         .find(|i| i.name == "freeze_authority_renounce")
         .unwrap();
-    let renounce_accounts: Vec<&str> = renounce
-        .accounts
-        .iter()
-        .map(|a| a.name.as_str())
-        .collect();
+    let renounce_accounts: Vec<&str> = renounce.accounts.iter().map(|a| a.name.as_str()).collect();
     for expected in ["admin_config", "freeze_config", "caller"] {
         assert!(
             renounce_accounts.contains(&expected),

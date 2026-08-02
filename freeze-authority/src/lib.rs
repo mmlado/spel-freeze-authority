@@ -165,8 +165,7 @@ impl FreezeConfig {
         self.slot.write_at(&mut bytes, offset)?;
         *bytes
             .get_mut(offset + 32)
-            .ok_or(FreezeError::SlotOutOfBounds)?
-            = self.is_frozen as u8;
+            .ok_or(FreezeError::SlotOutOfBounds)? = self.is_frozen as u8;
         account.account.data = bytes
             .try_into()
             .map_err(|_| FreezeError::AccountDataTooLarge)?;
@@ -285,7 +284,7 @@ impl FreezeConfig {
     ) -> Result<(), FreezeError> {
         Self::perform_renounce_at(admin_config, config_account, 0, current)
     }
-    
+
     /// Loads config from account, renounce admin, writes back.
     pub fn perform_renounce_at(
         admin_config: Option<&AdminConfig>,
@@ -309,7 +308,7 @@ impl FreezeConfig {
     }
 
     /// Loads config at `offset`, sets `is_frozen = true`, writes back.
-    /// 
+    ///
     /// Enforces the holder check via `set_is_frozen`.
     pub fn perform_freeze_at(
         config_account: &mut AccountWithMetadata,
@@ -332,7 +331,7 @@ impl FreezeConfig {
     }
 
     /// Loads config at `offset`, sets `is_frozen = false`, writes back.
-    /// 
+    ///
     /// Enforces the holder check via `set_is_frozen`.
     pub fn perform_release_at(
         config_account: &mut AccountWithMetadata,
@@ -503,11 +502,11 @@ impl core::fmt::Display for FreezeError {
             FreezeError::CandidateMismatch => write!(f, "candidate address mismatch"),
             FreezeError::NotFreezeAuthority => {
                 write!(f, "signer is not the current freeze authority")
-            },
+            }
             FreezeError::NotAdmin => write!(f, "signer is not the current admin"),
             FreezeError::NotAdminOrFreezeAuthority => {
                 write!(f, "signer is not the current admin or freeze authority")
-            },
+            }
             FreezeError::MissingSignature => write!(f, "freeze signature missing"),
             FreezeError::Renounced => write!(f, "freeze authority renounced"),
             FreezeError::AlreadyFrozen => write!(f, "program is already frozen"),
@@ -520,7 +519,7 @@ impl core::fmt::Display for FreezeError {
             FreezeError::AccountFrozen => write!(f, "account is frozen"),
             FreezeError::AccountDataTooLarge => {
                 write!(f, "FreezeConfig too large for account data")
-            },
+            }
             FreezeError::SlotOutOfBounds => write!(f, "embedded slot window out of bounds"),
         }
     }
@@ -615,10 +614,7 @@ pub fn freeze_authority_transfer(
     let mut accounts = post_state_pair(admin_config, freeze_config);
     accounts.push(caller.account);
     accounts.push(new_account.account);
-    Ok(SpelOutput::execute(
-        accounts,
-        vec![],
-    ))
+    Ok(SpelOutput::execute(accounts, vec![]))
 }
 
 #[instruction]
@@ -634,10 +630,7 @@ pub fn freeze_authority_renounce(
     FreezeConfig::perform_renounce_at(admin.as_ref(), &mut freeze_config, offset, &caller)?;
     let mut accounts = post_state_pair(admin_config, freeze_config);
     accounts.push(caller.account);
-    Ok(SpelOutput::execute(
-        accounts,
-        vec![],
-    ))
+    Ok(SpelOutput::execute(accounts, vec![]))
 }
 
 /// Sets the program-wide frozen flag to `true`.
@@ -728,10 +721,7 @@ pub fn freeze_account_release(
 /// Post-state pair for a dual-role fn: collapses to the written copy
 /// when both roles arrived as copies of one shared embedding account
 /// (LEZ rejects duplicate account ids in the output).
-fn post_state_pair(
-    read: AccountWithMetadata,
-    written: AccountWithMetadata,
-) -> Vec<Account> {
+fn post_state_pair(read: AccountWithMetadata, written: AccountWithMetadata) -> Vec<Account> {
     if read.account_id == written.account_id {
         vec![written.account]
     } else {
@@ -1334,11 +1324,11 @@ mod tests {
     fn frozen_account_state_write_to_rejects_oversized_data() {
         // Same as above — 1-byte encoding can't overflow the data cap.
     }
-    
+
     #[test]
     fn perform_renounce_rejects_unauthorized_caller() {
-        let auth = acct(1, true);        // freeze holder
-        let stranger = acct(2, true);    // not admin, not holder
+        let auth = acct(1, true); // freeze holder
+        let stranger = acct(2, true); // not admin, not holder
         let admin = admin_account_with(1); // admin is byte 1, not byte 2
         let cfg = FreezeConfig {
             slot: AuthoritySlot::initialize(auth.account_id).unwrap(),
@@ -1501,8 +1491,7 @@ mod tests {
         let admin_account = admin_account_with(2);
         let freeze_cfg = FreezeConfig::initialize(caller.account_id).unwrap();
         let freeze_account = config_account_with(&freeze_cfg);
-        let out =
-            freeze_authority_renounce(admin_account, freeze_account, caller, 0, 0).unwrap();
+        let out = freeze_authority_renounce(admin_account, freeze_account, caller, 0, 0).unwrap();
         assert_eq!(out.post_states.len(), 3);
     }
 }

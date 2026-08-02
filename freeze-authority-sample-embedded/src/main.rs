@@ -120,8 +120,13 @@ mod tests {
         }
         .write_to(&mut config_account)
         .expect("initial write");
-        AdminConfig::bootstrap_at(&mut config_account, 32, AdminCandidate::Signer, admin_signer)
-            .expect("bootstrap");
+        AdminConfig::bootstrap_at(
+            &mut config_account,
+            32,
+            AdminCandidate::Signer,
+            admin_signer,
+        )
+        .expect("bootstrap");
         config_account
     }
 
@@ -194,7 +199,10 @@ mod tests {
         let mut config_account = shared_account(&admin);
 
         let freeze = FreezeConfig::from_account_at(&config_account, 64).expect("decode");
-        assert!(freeze.assert(&anyone).is_err(), "born vacant slot must reject");
+        assert!(
+            freeze.assert(&anyone).is_err(),
+            "born vacant slot must reject"
+        );
 
         FreezeConfig::perform_transfer_at(
             &mut config_account,
