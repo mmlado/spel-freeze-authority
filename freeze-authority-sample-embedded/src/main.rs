@@ -7,11 +7,13 @@ use spel_framework::prelude::*;
 /// padding 8..32, admin 32..64, freeze 64..97. Two extensions, one
 /// consumer account, distinct windows.
 #[account_type]
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Default)]
 pub struct ProgramConfig {
     pub value: u64,
     pub padding: [u8; 24],
+    #[admin_slot]
     pub admin: AdminConfig,
+    #[freeze_slot]
     pub freeze: FreezeConfig,
 }
 

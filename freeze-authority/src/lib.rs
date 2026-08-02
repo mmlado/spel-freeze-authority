@@ -344,6 +344,19 @@ impl FreezeConfig {
     }
 }
 
+impl spel_framework::FixedBorshSize for FreezeConfig {
+    const SIZE: usize = 33;
+}
+
+impl spel_framework::SlotLayoutProbe for FreezeConfig {
+    fn probe() -> Self {
+        let mut cfg = FreezeConfig::initialize(AccountId::new([0xA5; 32]))
+            .expect("the probe admin is is not the renounced sentinel");
+        cfg.is_frozen = true;
+        cfg
+    }
+}
+
 /// Per-account freeze state.
 ///
 /// Stored in a per-target PDA at `(program_id, "frozen", target)`. Created

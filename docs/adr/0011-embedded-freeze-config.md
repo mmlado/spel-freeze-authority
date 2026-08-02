@@ -51,6 +51,10 @@ Consumer-written `freeze_config = ...` or `offset = ...` on `#[require_not_froze
 - The authority-suite libraries move in lockstep: admin M2.5 and freeze M2.5 ship as one coordinated release with matching upstream branch heads on `spel-framework`, `spel-authority`, and both extension repos. No cross-version combination ships.
 - `FrozenAccountState` is untouched. Per-account frozen state remains an on-demand PDA created by `freeze_account`, indexed by target `AccountId`, with the M2 semantics preserved.
 
+## The offset is derived on the struct
+
+freeze adopts the derived-offset mechanism from admin ADR-0007 in lockstep: `#[freeze_slot]` on the state struct's field makes the `account_type` derive emit `FREEZE_SLOT_OFFSET` plus the layout test, and `lez_program` emits a const assert that the marker's offset equals the derived const, so a struct edit the marker did not follow is a compile error. With both slots in one struct the declared sizes cross-check each other: the freeze slot's checks are computed through `AdminConfig`'s declared size, so a wrong size in either library fails the consumer's build.
+
 ## Rejected alternatives
 
 1. Embed `FrozenAccountState` too, via a marker `freeze_account = <consumer_account>`. Nowhere natural to embed N-per-program state. The consumer would have to allocate one field per potentially-frozen account or a hashmap, and the fixed-offset invariant that makes the framework's stamping deterministic breaks the moment the shape becomes dynamic. Per-account state stays a PDA.
