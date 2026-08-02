@@ -1,4 +1,4 @@
-use admin_authority::{AdminCandidate, AdminConfig};
+use admin_authority::{AdminCandidate, AdminConfig, admin_initialize};
 use borsh::{BorshDeserialize, BorshSerialize};
 use freeze_authority::{FreezeCandidate, FreezeConfig, freeze_exempt};
 use spel_framework::prelude::*;
@@ -46,6 +46,7 @@ mod freeze_authority_sample_embedded {
     /// Creates the embedding account, bootstraps the admin slot, and
     /// leaves the freeze slot born vacant: the admin appoints the first
     /// holder via freeze_authority_transfer.
+    #[admin_initialize]
     #[instruction]
     pub fn initialize(
         #[account(init, pda = literal("program_config"))] mut config: AccountWithMetadata,
