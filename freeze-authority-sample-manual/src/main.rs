@@ -56,12 +56,7 @@ mod freeze_authority_sample_manual {
         FreezeConfig::bootstrap(&mut freeze_config, FreezeCandidate::Signer, &signer)?;
         ProgramConfig::default().write_to(&mut config)?;
         Ok(SpelOutput::execute(
-            vec![
-                admin_config.account,
-                freeze_config.account,
-                config.account,
-                signer.account,
-            ],
+            vec![admin_config, freeze_config, config, signer],
             vec![],
         ))
     }
