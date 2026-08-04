@@ -59,7 +59,6 @@ mod freeze_authority_sample_embedded {
             freeze: FreezeConfig::default(),
         }
         .write_to(&mut config)?;
-        AdminConfig::bootstrap_at(&mut config, 32, AdminCandidate::Signer, &signer)?;
         Ok(SpelOutput::execute(vec![config, signer], vec![]))
     }
 
