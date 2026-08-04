@@ -22,9 +22,9 @@ jobs:
       - name: Sibling revs from the manifests
         id: pins
         run: |
-          echo "authority=$(grep -rhoP 'spel-authority(\.git)?", branch = "\K[^"]+' \
+          echo "authority=$(grep -rhoP 'spel-authority(\.git)?", (?:branch|rev) = "\K[^"]+' \
             --include=Cargo.toml . | head -1)" >> "$GITHUB_OUTPUT"
-          echo "admin=$(grep -rhoP 'spel-admin-authority(\.git)?", branch = "\K[^"]+' \
+          echo "admin=$(grep -rhoP 'spel-admin-authority(\.git)?", (?:branch|rev) = "\K[^"]+' \
             --include=Cargo.toml . | head -1)" >> "$GITHUB_OUTPUT"
       - name: Check out spel-authority at the pin (IDL tests read its source)
         uses: actions/checkout@v4
@@ -65,7 +65,7 @@ jobs:
       - name: Locate the pinned framework rev
         id: rev
         run: |
-          rev=$(grep -rhoP 'github.com/mmlado/spel(\.git)?", branch = "\K[^"]+' \
+          rev=$(grep -rhoP 'github.com/mmlado/spel(\.git)?", (?:branch|rev) = "\K[^"]+' \
             --include=Cargo.toml . | head -1)
           echo "rev=$rev" >> "$GITHUB_OUTPUT"
       - name: Check out the framework at the pin

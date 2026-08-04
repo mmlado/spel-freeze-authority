@@ -11,8 +11,8 @@ name = "consumer_fixture"
 path = "src/bin/consumer_fixture.rs"
 
 [dependencies]
-spel-framework = { git = "https://github.com/mmlado/spel.git", branch = "feat/admin_authority_m3" }
-admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", branch = "m3" }
+spel-framework = { git = "https://github.com/mmlado/spel.git", rev = "56ea137d8203da9b860839de41fa4f965a21dec5" }
+admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", rev = "2eaa5118ed453a53219bdb1cde48d112de10510f" }
 freeze-authority = { git = "https://github.com/mmlado/spel-freeze-authority.git", branch = "m3" }
 nssa_core = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", tag = "v0.2.0", package = "lee_core" }
 risc0-zkvm = { version = "=3.0.5", features = ["std"] }
