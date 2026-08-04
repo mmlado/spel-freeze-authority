@@ -21,7 +21,9 @@ Declared program-wide on the marker, in lockstep with admin-authority's embedded
 pub struct ProgramConfig {
     pub value: u64,            // bytes 0..8
     pub padding: [u8; 24],     // bytes 8..32
+    #[admin_slot]
     pub admin: AdminConfig,    // bytes 32..64
+    #[freeze_slot]
     pub freeze: FreezeConfig,  // bytes 64..97
 }
 
@@ -33,7 +35,8 @@ mod my_program { ... }
 
 What changes versus dedicated mode:
 
-- **No `freeze_initialize`.** The slot is born vacant: the consumer's account-creating instruction writes the struct and the admin appoints the first holder via `freeze_authority_transfer`, the same path that repopulates a renounced slot. There is no front-running window because there is no initializer to race.
+- **No `freeze_initialize`.** The slot is born vacant: the consumer's account-creating instruction writes the struct and the admin appoints the first holder via `freeze_authority_transfer`, the same path that repopulates a renounced slot. There is no front-running window because there is no initializer to race. The admin slot next door is bootstrapped by marking that same instruction with `#[admin_initialize]` from the admin-authority crate.
+- **Slot markers keep the layout honest.** `#[admin_slot]` and `#[freeze_slot]` each derive an offset const and a layout test, and the build fails if a marker position and its declared `offset` disagree.
 - **One account per transaction.** When admin and freeze share the embedding account, the framework merges the two role params into one transaction account and the library emits exactly one post-state for it. The IDL lists the shared account once.
 - **Admin's location travels by marker.** `freeze_authority_transfer` and `freeze_authority_renounce` read admin state at the offset declared on the admin marker. The framework resolves it at the consumer's build (a cross-marker bound arg, [ADR-0012](docs/adr/0012-cross-marker-bound-args.md)) and bakes it into the dispatcher as a literal.
 - **No offset is ever in a transaction.** All offsets compile into the program. Changing one changes the bytecode, which on LEZ is a different program.
