@@ -1,3 +1,6 @@
+//! Crate-internal test helpers: canned accounts and pre-populated
+//! configs shared by the unit tests across modules.
+
 use admin_authority::AdminConfig;
 use spel_framework::prelude::*;
 

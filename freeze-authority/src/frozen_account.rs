@@ -1,3 +1,7 @@
+//! Per-account freeze state. `FrozenAccountState` is the one-byte flag
+//! living in a per-target PDA, set and cleared by the freeze authority
+//! through `perform_freeze` and `perform_release`.
+
 #![warn(missing_docs)]
 
 use borsh::{BorshDeserialize, BorshSerialize};

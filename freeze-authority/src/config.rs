@@ -1,3 +1,9 @@
+//! The freeze slot. `FreezeConfig` holds the freeze authority next to
+//! the program-wide frozen flag and wraps the shared `authority` slot
+//! machinery: decode, assert, transfer, renounce, freeze, and release,
+//! each in a plain form for a dedicated Config PDA and an `_at` form
+//! that splices only the slot's byte window of an embedding account.
+
 #![warn(missing_docs)]
 
 use admin_authority::AdminConfig;
