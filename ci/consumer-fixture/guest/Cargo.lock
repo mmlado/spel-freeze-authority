@@ -7,39 +7,17 @@ name = "admin-authority"
 version = "0.1.0"
 source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=2085e49d9385c6155e7e77be5cf502a4286ce6c9#2085e49d9385c6155e7e77be5cf502a4286ce6c9"
 dependencies = [
- "admin-authority-macros 0.1.0 (git+https://github.com/mmlado/spel-admin-authority.git?rev=2085e49d9385c6155e7e77be5cf502a4286ce6c9)",
+ "admin-authority-macros",
  "borsh",
  "serde",
- "spel-authority 0.1.0 (git+https://github.com/mmlado/spel-authority.git?rev=e20f87cbd6e7ee267810f41a2faa81fc03b053a7)",
- "spel-framework 0.5.0 (git+https://github.com/mmlado/spel.git?rev=98752095f45d405469f572668cd744c317fb8dad)",
-]
-
-[[package]]
-name = "admin-authority"
-version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=2eaa5118ed453a53219bdb1cde48d112de10510f#2eaa5118ed453a53219bdb1cde48d112de10510f"
-dependencies = [
- "admin-authority-macros 0.1.0 (git+https://github.com/mmlado/spel-admin-authority.git?rev=2eaa5118ed453a53219bdb1cde48d112de10510f)",
- "borsh",
- "serde",
- "spel-authority 0.1.0 (git+https://github.com/mmlado/spel-authority.git?rev=cc297040db3e582b660fe4c883fce4fbba05bf4c)",
- "spel-framework 0.5.0 (git+https://github.com/mmlado/spel.git?rev=56ea137d8203da9b860839de41fa4f965a21dec5)",
+ "spel-authority",
+ "spel-framework",
 ]
 
 [[package]]
 name = "admin-authority-macros"
 version = "0.1.0"
 source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=2085e49d9385c6155e7e77be5cf502a4286ce6c9#2085e49d9385c6155e7e77be5cf502a4286ce6c9"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "admin-authority-macros"
-version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=2eaa5118ed453a53219bdb1cde48d112de10510f#2eaa5118ed453a53219bdb1cde48d112de10510f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -804,14 +782,14 @@ dependencies = [
 name = "consumer-fixture-guest"
 version = "0.1.0"
 dependencies = [
- "admin-authority 0.1.0 (git+https://github.com/mmlado/spel-admin-authority.git?rev=2085e49d9385c6155e7e77be5cf502a4286ce6c9)",
+ "admin-authority",
  "borsh",
  "freeze-authority",
  "lee_core",
  "risc0-zkvm",
  "ruint",
  "serde",
- "spel-framework 0.5.0 (git+https://github.com/mmlado/spel.git?rev=98752095f45d405469f572668cd744c317fb8dad)",
+ "spel-framework",
 ]
 
 [[package]]
@@ -1328,20 +1306,20 @@ dependencies = [
 [[package]]
 name = "freeze-authority"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-freeze-authority.git?branch=m3#2078da2c58ec9c2a132c11618cc33317e5906321"
+source = "git+https://github.com/mmlado/spel-freeze-authority.git?branch=m3#5c90099bb4f7fa16827d8aa98098009ca8cf19cf"
 dependencies = [
- "admin-authority 0.1.0 (git+https://github.com/mmlado/spel-admin-authority.git?rev=2eaa5118ed453a53219bdb1cde48d112de10510f)",
+ "admin-authority",
  "borsh",
  "freeze-authority-macros",
  "serde",
- "spel-authority 0.1.0 (git+https://github.com/mmlado/spel-authority.git?rev=cc297040db3e582b660fe4c883fce4fbba05bf4c)",
- "spel-framework 0.5.0 (git+https://github.com/mmlado/spel.git?rev=56ea137d8203da9b860839de41fa4f965a21dec5)",
+ "spel-authority",
+ "spel-framework",
 ]
 
 [[package]]
 name = "freeze-authority-macros"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-freeze-authority.git?branch=m3#2078da2c58ec9c2a132c11618cc33317e5906321"
+source = "git+https://github.com/mmlado/spel-freeze-authority.git?branch=m3#5c90099bb4f7fa16827d8aa98098009ca8cf19cf"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3310,33 +3288,11 @@ dependencies = [
 [[package]]
 name = "spel-authority"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-authority.git?rev=cc297040db3e582b660fe4c883fce4fbba05bf4c#cc297040db3e582b660fe4c883fce4fbba05bf4c"
-dependencies = [
- "borsh",
- "serde",
- "spel-framework 0.5.0 (git+https://github.com/mmlado/spel.git?rev=56ea137d8203da9b860839de41fa4f965a21dec5)",
-]
-
-[[package]]
-name = "spel-authority"
-version = "0.1.0"
 source = "git+https://github.com/mmlado/spel-authority.git?rev=e20f87cbd6e7ee267810f41a2faa81fc03b053a7#e20f87cbd6e7ee267810f41a2faa81fc03b053a7"
 dependencies = [
  "borsh",
  "serde",
- "spel-framework 0.5.0 (git+https://github.com/mmlado/spel.git?rev=98752095f45d405469f572668cd744c317fb8dad)",
-]
-
-[[package]]
-name = "spel-framework"
-version = "0.5.0"
-source = "git+https://github.com/mmlado/spel.git?rev=56ea137d8203da9b860839de41fa4f965a21dec5#56ea137d8203da9b860839de41fa4f965a21dec5"
-dependencies = [
- "borsh",
- "lee_core",
- "serde_json",
- "spel-framework-core 0.5.0 (git+https://github.com/mmlado/spel.git?rev=56ea137d8203da9b860839de41fa4f965a21dec5)",
- "spel-framework-macros 0.5.0 (git+https://github.com/mmlado/spel.git?rev=56ea137d8203da9b860839de41fa4f965a21dec5)",
+ "spel-framework",
 ]
 
 [[package]]
@@ -3347,25 +3303,8 @@ dependencies = [
  "borsh",
  "lee_core",
  "serde_json",
- "spel-framework-core 0.5.0 (git+https://github.com/mmlado/spel.git?rev=98752095f45d405469f572668cd744c317fb8dad)",
- "spel-framework-macros 0.5.0 (git+https://github.com/mmlado/spel.git?rev=98752095f45d405469f572668cd744c317fb8dad)",
-]
-
-[[package]]
-name = "spel-framework-core"
-version = "0.5.0"
-source = "git+https://github.com/mmlado/spel.git?rev=56ea137d8203da9b860839de41fa4f965a21dec5#56ea137d8203da9b860839de41fa4f965a21dec5"
-dependencies = [
- "base58",
- "borsh",
- "lee_core",
- "proc-macro2",
- "serde",
- "serde_json",
- "sha2",
- "syn 2.0.119",
- "thiserror 1.0.69",
- "toml",
+ "spel-framework-core",
+ "spel-framework-macros",
 ]
 
 [[package]]
@@ -3388,26 +3327,13 @@ dependencies = [
 [[package]]
 name = "spel-framework-macros"
 version = "0.5.0"
-source = "git+https://github.com/mmlado/spel.git?rev=56ea137d8203da9b860839de41fa4f965a21dec5#56ea137d8203da9b860839de41fa4f965a21dec5"
-dependencies = [
- "proc-macro2",
- "quote",
- "serde_json",
- "sha2",
- "spel-framework-core 0.5.0 (git+https://github.com/mmlado/spel.git?rev=56ea137d8203da9b860839de41fa4f965a21dec5)",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "spel-framework-macros"
-version = "0.5.0"
 source = "git+https://github.com/mmlado/spel.git?rev=98752095f45d405469f572668cd744c317fb8dad#98752095f45d405469f572668cd744c317fb8dad"
 dependencies = [
  "proc-macro2",
  "quote",
  "serde_json",
  "sha2",
- "spel-framework-core 0.5.0 (git+https://github.com/mmlado/spel.git?rev=98752095f45d405469f572668cd744c317fb8dad)",
+ "spel-framework-core",
  "syn 2.0.119",
 ]
 
