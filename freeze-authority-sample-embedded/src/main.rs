@@ -38,8 +38,8 @@ impl ProgramConfig {
 }
 
 #[lez_program]
-#[admin_authority(admin_config = config, offset = 32)]
-#[freeze_authority(freeze_config = config, offset = 64)]
+#[admin_authority(admin_config = config)]
+#[freeze_authority(freeze_config = config)]
 mod freeze_authority_sample_embedded {
     use admin_authority::require_admin;
 

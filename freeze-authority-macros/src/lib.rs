@@ -28,23 +28,11 @@ pub fn require_not_frozen(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut config_ident = format_ident!("freeze_config");
     let mut per_account_ident = format_ident!("freeze_account");
-    let mut offset: usize = 0;
+    let mut offset: syn::Expr = syn::parse_quote!(0);
 
     for pair in args {
         if pair.path.is_ident("offset") {
-            let Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Int(i),
-                ..
-            }) = &pair.value
-            else {
-                return syn::Error::new_spanned(&pair.value, "offset must be an integer literal")
-                    .to_compile_error()
-                    .into();
-            };
-            offset = match i.base10_parse::<usize>() {
-                Ok(v) => v,
-                Err(e) => return e.to_compile_error().into(),
-            };
+            offset = pair.value.clone();
             continue;
         }
         let value_ident = match &pair.value {

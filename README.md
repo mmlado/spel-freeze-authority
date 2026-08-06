@@ -28,17 +28,17 @@ pub struct ProgramConfig {
 }
 
 #[lez_program]
-#[admin_authority(admin_config = config, offset = 32)]
-#[freeze_authority(freeze_config = config, offset = 64)]
+#[admin_authority(admin_config = config)]
+#[freeze_authority(freeze_config = config)]
 mod my_program { ... }
 ```
 
 What changes versus dedicated mode:
 
 - **No `freeze_initialize`.** The slot is born vacant: the consumer's account-creating instruction writes the struct and the admin appoints the first holder via `freeze_authority_transfer`, the same path that repopulates a renounced slot. There is no front-running window because there is no initializer to race. The admin slot next door is bootstrapped by marking that same instruction with `#[admin_initialize]` from the admin-authority crate.
-- **Slot markers keep the layout honest.** `#[admin_slot]` and `#[freeze_slot]` each derive an offset const and a layout test, and the build fails if a marker position and its declared `offset` disagree.
+- **Slot markers state the layout, once.** `#[admin_slot]` and `#[freeze_slot]` each derive an offset const, computed by rustc from the preceding fields, plus a layout test pinning it to real serialization; the markers are where the offsets come from. An explicit `offset = <bytes>` on a marker stays supported and is agreement-checked against the derived const. Two derived slots sharing an account get a window-collision assert rustc evaluates.
 - **One account per transaction.** When admin and freeze share the embedding account, the framework merges the two role params into one transaction account and the library emits exactly one post-state for it. The IDL lists the shared account once.
-- **Admin's location travels by marker.** `freeze_authority_transfer` and `freeze_authority_renounce` read admin state at the offset declared on the admin marker. The framework resolves it at the consumer's build (a cross-marker bound arg, [ADR-0012](docs/adr/0012-cross-marker-bound-args.md)) and bakes it into the dispatcher as a literal.
+- **Admin's location travels by marker.** `freeze_authority_transfer` and `freeze_authority_renounce` read admin state at the admin marker's offset. The framework resolves it at the consumer's build (a cross-marker bound arg, [ADR-0012](docs/adr/0012-cross-marker-bound-args.md)) and bakes it into the dispatcher, as the literal or as the admin slot's derived const path.
 - **No offset is ever in a transaction.** All offsets compile into the program. Changing one changes the bytecode, which on LEZ is a different program.
 - **Dedicated mode is untouched.** Internally it is the degenerate case offset 0, and the dedicated dry-run remains byte-identical to the M2 pin.
 
