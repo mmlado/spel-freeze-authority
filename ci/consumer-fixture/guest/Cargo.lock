@@ -5,13 +5,35 @@ version = 4
 [[package]]
 name = "admin-authority"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=2eaa5118ed453a53219bdb1cde48d112de10510f#2eaa5118ed453a53219bdb1cde48d112de10510f"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=2085e49d9385c6155e7e77be5cf502a4286ce6c9#2085e49d9385c6155e7e77be5cf502a4286ce6c9"
 dependencies = [
- "admin-authority-macros",
+ "admin-authority-macros 0.1.0 (git+https://github.com/mmlado/spel-admin-authority.git?rev=2085e49d9385c6155e7e77be5cf502a4286ce6c9)",
  "borsh",
  "serde",
- "spel-authority",
- "spel-framework",
+ "spel-authority 0.1.0 (git+https://github.com/mmlado/spel-authority.git?rev=e20f87cbd6e7ee267810f41a2faa81fc03b053a7)",
+ "spel-framework 0.5.0 (git+https://github.com/mmlado/spel.git?rev=98752095f45d405469f572668cd744c317fb8dad)",
+]
+
+[[package]]
+name = "admin-authority"
+version = "0.1.0"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=2eaa5118ed453a53219bdb1cde48d112de10510f#2eaa5118ed453a53219bdb1cde48d112de10510f"
+dependencies = [
+ "admin-authority-macros 0.1.0 (git+https://github.com/mmlado/spel-admin-authority.git?rev=2eaa5118ed453a53219bdb1cde48d112de10510f)",
+ "borsh",
+ "serde",
+ "spel-authority 0.1.0 (git+https://github.com/mmlado/spel-authority.git?rev=cc297040db3e582b660fe4c883fce4fbba05bf4c)",
+ "spel-framework 0.5.0 (git+https://github.com/mmlado/spel.git?rev=56ea137d8203da9b860839de41fa4f965a21dec5)",
+]
+
+[[package]]
+name = "admin-authority-macros"
+version = "0.1.0"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=2085e49d9385c6155e7e77be5cf502a4286ce6c9#2085e49d9385c6155e7e77be5cf502a4286ce6c9"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -63,9 +85,9 @@ dependencies = [
 
 [[package]]
 name = "android_system_properties"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "819e7219dbd41043ac279b19830f2efc897156490d7fd6ea916720117ee66311"
+checksum = "ae221649c9976a6f6c56ae1facf410f3ddb33cc661c4b7b61020a912d4237fbc"
 dependencies = [
  "libc",
 ]
@@ -782,14 +804,14 @@ dependencies = [
 name = "consumer-fixture-guest"
 version = "0.1.0"
 dependencies = [
- "admin-authority",
+ "admin-authority 0.1.0 (git+https://github.com/mmlado/spel-admin-authority.git?rev=2085e49d9385c6155e7e77be5cf502a4286ce6c9)",
  "borsh",
  "freeze-authority",
  "lee_core",
  "risc0-zkvm",
  "ruint",
  "serde",
- "spel-framework",
+ "spel-framework 0.5.0 (git+https://github.com/mmlado/spel.git?rev=98752095f45d405469f572668cd744c317fb8dad)",
 ]
 
 [[package]]
@@ -1306,20 +1328,20 @@ dependencies = [
 [[package]]
 name = "freeze-authority"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-freeze-authority.git?branch=m3#126a40e3d148b4b39d98810c7ce10f351e6b6cb3"
+source = "git+https://github.com/mmlado/spel-freeze-authority.git?branch=m3#2078da2c58ec9c2a132c11618cc33317e5906321"
 dependencies = [
- "admin-authority",
+ "admin-authority 0.1.0 (git+https://github.com/mmlado/spel-admin-authority.git?rev=2eaa5118ed453a53219bdb1cde48d112de10510f)",
  "borsh",
  "freeze-authority-macros",
  "serde",
- "spel-authority",
- "spel-framework",
+ "spel-authority 0.1.0 (git+https://github.com/mmlado/spel-authority.git?rev=cc297040db3e582b660fe4c883fce4fbba05bf4c)",
+ "spel-framework 0.5.0 (git+https://github.com/mmlado/spel.git?rev=56ea137d8203da9b860839de41fa4f965a21dec5)",
 ]
 
 [[package]]
 name = "freeze-authority-macros"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-freeze-authority.git?branch=m3#126a40e3d148b4b39d98810c7ce10f351e6b6cb3"
+source = "git+https://github.com/mmlado/spel-freeze-authority.git?branch=m3#2078da2c58ec9c2a132c11618cc33317e5906321"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1851,9 +1873,9 @@ dependencies = [
 
 [[package]]
 name = "keccak"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e24a010dd405bd7ed803e5253182815b41bf2e6a80cc3bfc066658e03a198aa"
+checksum = "ffd9697dc4a9a62e2da93389f34400b77a28f0287711263cabb203b3ccb9c0e4"
 dependencies = [
  "cfg-if",
  "cpufeatures 0.3.0",
@@ -2609,9 +2631,9 @@ dependencies = [
 
 [[package]]
 name = "regex-automata"
-version = "0.4.16"
+version = "0.4.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fcfdb36bda0c880c5931cdc7a2bcdc8ba4556847b9d912bca70bc94708711ad"
+checksum = "ad8553b9b26413251cbf30e620595c7a41b3887f03da04579c0e6b0d6a06b4b2"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -3244,7 +3266,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be176f1a57ce4e3d31c1a166222d9768de5954f811601fb7ca06fc8203905ce1"
 dependencies = [
  "digest 0.11.3",
- "keccak 0.2.0",
+ "keccak 0.2.1",
 ]
 
 [[package]]
@@ -3292,7 +3314,17 @@ source = "git+https://github.com/mmlado/spel-authority.git?rev=cc297040db3e582b6
 dependencies = [
  "borsh",
  "serde",
- "spel-framework",
+ "spel-framework 0.5.0 (git+https://github.com/mmlado/spel.git?rev=56ea137d8203da9b860839de41fa4f965a21dec5)",
+]
+
+[[package]]
+name = "spel-authority"
+version = "0.1.0"
+source = "git+https://github.com/mmlado/spel-authority.git?rev=e20f87cbd6e7ee267810f41a2faa81fc03b053a7#e20f87cbd6e7ee267810f41a2faa81fc03b053a7"
+dependencies = [
+ "borsh",
+ "serde",
+ "spel-framework 0.5.0 (git+https://github.com/mmlado/spel.git?rev=98752095f45d405469f572668cd744c317fb8dad)",
 ]
 
 [[package]]
@@ -3303,14 +3335,43 @@ dependencies = [
  "borsh",
  "lee_core",
  "serde_json",
- "spel-framework-core",
- "spel-framework-macros",
+ "spel-framework-core 0.5.0 (git+https://github.com/mmlado/spel.git?rev=56ea137d8203da9b860839de41fa4f965a21dec5)",
+ "spel-framework-macros 0.5.0 (git+https://github.com/mmlado/spel.git?rev=56ea137d8203da9b860839de41fa4f965a21dec5)",
+]
+
+[[package]]
+name = "spel-framework"
+version = "0.5.0"
+source = "git+https://github.com/mmlado/spel.git?rev=98752095f45d405469f572668cd744c317fb8dad#98752095f45d405469f572668cd744c317fb8dad"
+dependencies = [
+ "borsh",
+ "lee_core",
+ "serde_json",
+ "spel-framework-core 0.5.0 (git+https://github.com/mmlado/spel.git?rev=98752095f45d405469f572668cd744c317fb8dad)",
+ "spel-framework-macros 0.5.0 (git+https://github.com/mmlado/spel.git?rev=98752095f45d405469f572668cd744c317fb8dad)",
 ]
 
 [[package]]
 name = "spel-framework-core"
 version = "0.5.0"
 source = "git+https://github.com/mmlado/spel.git?rev=56ea137d8203da9b860839de41fa4f965a21dec5#56ea137d8203da9b860839de41fa4f965a21dec5"
+dependencies = [
+ "base58",
+ "borsh",
+ "lee_core",
+ "proc-macro2",
+ "serde",
+ "serde_json",
+ "sha2",
+ "syn 2.0.119",
+ "thiserror 1.0.69",
+ "toml",
+]
+
+[[package]]
+name = "spel-framework-core"
+version = "0.5.0"
+source = "git+https://github.com/mmlado/spel.git?rev=98752095f45d405469f572668cd744c317fb8dad#98752095f45d405469f572668cd744c317fb8dad"
 dependencies = [
  "base58",
  "borsh",
@@ -3333,7 +3394,20 @@ dependencies = [
  "quote",
  "serde_json",
  "sha2",
- "spel-framework-core",
+ "spel-framework-core 0.5.0 (git+https://github.com/mmlado/spel.git?rev=56ea137d8203da9b860839de41fa4f965a21dec5)",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "spel-framework-macros"
+version = "0.5.0"
+source = "git+https://github.com/mmlado/spel.git?rev=98752095f45d405469f572668cd744c317fb8dad#98752095f45d405469f572668cd744c317fb8dad"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde_json",
+ "sha2",
+ "spel-framework-core 0.5.0 (git+https://github.com/mmlado/spel.git?rev=98752095f45d405469f572668cd744c317fb8dad)",
  "syn 2.0.119",
 ]
 
@@ -4201,18 +4275,18 @@ dependencies = [
 
 [[package]]
 name = "zerocopy"
-version = "0.8.55"
+version = "0.8.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5a105cd7b140f6eeec8acff2ea38135d3cab283ada58540f629fe51e46696eb"
+checksum = "556764e583adb45a9f8d413c2a147fa7e8d821e48e12b14fd560b607998b75eb"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.8.55"
+version = "0.8.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fe976fb70c78cd64cccfe3a6fc142244e8a77b70959b30faf9d0ac37ee228eb"
+checksum = "f2ab42fc20575779bd240faa45f94a74256f755c0fa9e89f0ede20d91d0cdfc1"
 dependencies = [
  "proc-macro2",
  "quote",
