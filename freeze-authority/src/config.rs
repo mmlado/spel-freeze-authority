@@ -20,9 +20,6 @@ use crate::errors::*;
 /// chain-state evidence.
 pub type FreezeCandidate = AuthorityCandidate;
 
-/// Borsh-encoded size of FreezeConfig: 32-byte slot plus 1 flag byte.
-pub const ENCODED_LEN: usize = 33;
-
 /// On-chain freeze authority state for a single program.
 ///
 /// Stored in the program's Config PDA at `(program_id, "freeze_config")`.
@@ -358,6 +355,19 @@ impl spel_framework::SlotLayoutProbe for FreezeConfig {
 mod tests {
     use super::*;
     use crate::test_utils::*;
+
+    // The declared embedded window type must be this crate's real
+    // config: the framework emits window collision asserts through its
+    // FixedBorshSize::SIZE at every embedded consumer's build.
+    #[test]
+    fn metadata_state_type_names_the_real_config() {
+        let _size_witness = <FreezeConfig as spel_framework::FixedBorshSize>::SIZE;
+        let manifest = include_str!("../Cargo.toml");
+        assert!(
+            manifest.contains(r#"state_type = "freeze_authority::FreezeConfig""#),
+            "embedded.state_type must name freeze_authority::FreezeConfig"
+        );
+    }
 
     #[test]
     fn freeze_config_decode_empty_returns_not_initialized() {

@@ -9,8 +9,6 @@ Program ID: abababababababababababababababababababababababababababababababab
 Instruction: initialize
 
 Accounts:
-  PDA freeze_account → AAxH4yy8BZAi2uHPNDJHycgzi2b9eiasnfGXQ4r5CkjM
-    seeds: [program_id, "frozen", Account(signer)]
   PDA config → 3oLE2nK8zsrUzkNDfK3LqFuLidpchRMPoytsmbcHFQwY [writable]
     seeds: [program_id, "program_config"]
   signer → 0x1111111111111111111111111111111111111111111111111111111111111111 [signer]
