@@ -118,16 +118,25 @@ pub fn freeze_authority_renounce(
 /// Only the current freeze authority can call. While `is_frozen` is `true`,
 /// every dispatched instruction except the F3 carve-outs and admin operations
 /// rejects via the auto-wrap framework hook.
+///
+/// `freeze_account` is this fn's own gate account (library fns declare their
+/// gate accounts, ADR-0010) and passes through the post-states unchanged, in
+/// declared position. LEZ matches pre and post states by position, so
+/// dropping it shifts every later post-state one slot left.
 #[instruction]
 pub fn freeze_program(
     #[account(mut, pda = literal("freeze_config"))] mut freeze_config: AccountWithMetadata,
-    #[account(pda = [literal("frozen"), account("caller")])] _freeze_account: AccountWithMetadata,
+    #[account(pda = [literal("frozen"), account("caller")])] freeze_account: AccountWithMetadata,
     #[account(signer)] caller: AccountWithMetadata,
     offset: usize,
 ) -> SpelResult {
     FreezeConfig::perform_freeze_at(&mut freeze_config, offset, &caller)?;
     Ok(SpelOutput::execute(
-        vec![freeze_config.account, caller.account],
+        vec![
+            freeze_config.account,
+            freeze_account.account,
+            caller.account,
+        ],
         vec![],
     ))
 }
@@ -154,7 +163,10 @@ pub fn freeze_program_release(
 ///
 /// Only the current freeze authority can call. First call against a target
 /// inits the per-account PDA; subsequent calls toggle the bool in place
-/// (PDAs persist per ADR-0008; LEZ has no close primitive). F3 carve-out:
+/// (PDAs persist per ADR-0008; LEZ has no close primitive). The first touch
+/// emits the marker's post-state with a `Claim::Pda` built from the same
+/// seeds the account declares — LEZ rejects a write to a default account
+/// without a claim. Toggles emit it unclaimed. F3 carve-out:
 /// callable while the program-wide frozen flag is `true` — useful for
 /// preparing per-account blocks before unfreezing the program.
 #[instruction]
@@ -166,11 +178,20 @@ pub fn freeze_account(
     target: [u8; 32],
     offset: usize,
 ) -> SpelResult {
-    let _ = target;
+    let first_touch = frozen_pda.account.data.is_empty();
     let authority = FreezeConfig::from_account_at(&freeze_config, offset)?;
     FrozenAccountState::perform_freeze(&authority, &mut frozen_pda, &caller)?;
+    let claim = if first_touch {
+        AutoClaim::pda_from_seeds(&[&seed_from_str("frozen"), &target.to_seed()])
+    } else {
+        AutoClaim::None
+    };
     Ok(SpelOutput::execute(
-        vec![freeze_config.account, frozen_pda.account, caller.account],
+        vec![
+            (freeze_config.account, AutoClaim::None),
+            (frozen_pda.account, claim),
+            (caller.account, AutoClaim::None),
+        ],
         vec![],
     ))
 }
@@ -178,8 +199,9 @@ pub fn freeze_account(
 /// Sets the per-account frozen flag to `false` for `target`.
 ///
 /// Only the current freeze authority can call. Mutates the existing
-/// per-target PDA; rejects with `AccountNotFrozen` if the target was never
-/// frozen. F3 carve-out: callable while the program-wide frozen flag is `true`.
+/// per-target PDA; rejects with `AccountNotFrozen` if the target is not
+/// currently frozen — never frozen or already released. F3 carve-out:
+/// callable while the program-wide frozen flag is `true`.
 #[instruction]
 #[freeze_exempt]
 pub fn freeze_account_release(
@@ -454,6 +476,81 @@ mod tests {
             declared,
             vec!["caller", "freeze_account", "freeze_config"],
             "manifest inject accounts drifted from the wrapper's kwarg set"
+        );
+    }
+
+    // Live-round regression (2026-08-09): freeze_program declared the gate's
+    // marker account but emitted only two post-states. LEZ zips pre and post
+    // states by position, so the caller's post-state landed in the marker's
+    // slot and the sequencer refused with ModifiedNonce.
+    #[test]
+    fn freeze_program_passes_gate_marker_through_post_states() {
+        let holder = acct(1, true);
+        let cfg = FreezeConfig::initialize(holder.account_id).unwrap();
+        let config_account = embedded_config_account(0, &cfg);
+        let marker = acct(7, false);
+        let out =
+            freeze_program(config_account, marker.clone(), holder, 0).expect("freeze succeeds");
+        assert_eq!(
+            out.post_states.len(),
+            3,
+            "one post-state per declared account, in declared order"
+        );
+        assert_eq!(
+            out.post_states[1].account(),
+            &marker.account,
+            "marker passes through unchanged"
+        );
+        assert!(
+            out.post_states[1].required_claim().is_none(),
+            "pass-through must not claim"
+        );
+        let frozen = FreezeConfig::from_account_at(
+            &AccountWithMetadata {
+                account: out.post_states[0].account().clone(),
+                is_authorized: false,
+                account_id: AccountId::new([9; 32]),
+            },
+            0,
+        )
+        .expect("decode updated config");
+        assert!(frozen.is_frozen, "program-wide flag set");
+    }
+
+    // Live-round regression (2026-08-09): the first write to a target's
+    // marker PDA must carry a Claim::Pda or LEZ refuses the creation with
+    // DefaultAccountModifiedWithoutClaim. Toggles stay unclaimed.
+    #[test]
+    fn freeze_account_first_touch_emits_pda_claim() {
+        let holder = acct(1, true);
+        let cfg = FreezeConfig::initialize(holder.account_id).unwrap();
+        let config_account = embedded_config_account(0, &cfg);
+        let marker = acct(7, false);
+        let target = [7u8; 32];
+        let out = freeze_account(config_account, marker, holder, target, 0)
+            .expect("first freeze succeeds");
+        let claim = out.post_states[1]
+            .required_claim()
+            .expect("first touch must claim the marker");
+        let AutoClaim::Claimed(expected) =
+            AutoClaim::pda_from_seeds(&[&seed_from_str("frozen"), &target.to_seed()])
+        else {
+            unreachable!("pda_from_seeds always claims");
+        };
+        assert_eq!(claim, expected, "claim seeds match the declared account");
+    }
+
+    #[test]
+    fn freeze_account_toggle_emits_no_claim() {
+        let holder = acct(1, true);
+        let cfg = FreezeConfig::initialize(holder.account_id).unwrap();
+        let config_account = embedded_config_account(0, &cfg);
+        let marker = per_account_with(true);
+        let out =
+            freeze_account(config_account, marker, holder, [7u8; 32], 0).expect("toggle succeeds");
+        assert!(
+            out.post_states[1].required_claim().is_none(),
+            "an existing marker must not be re-claimed"
         );
     }
 }

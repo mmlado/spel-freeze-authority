@@ -95,13 +95,22 @@ impl FrozenAccountState {
 
     /// Loads per-account state, sets `is_frozen = false`, writes back.
     ///
-    /// Enforces the holder check via `set_is_frozen`.
+    /// Asserts the holder first, so non-holders are rejected with
+    /// `NotFreezeAuthority` regardless of the marker's state. Rejects with
+    /// `AccountNotFrozen` when the marker is not currently frozen — never
+    /// frozen or already released. That refusal also means a release never
+    /// writes to an untouched account, which on LEZ would be a
+    /// default-account modification without a claim.
     pub fn perform_release(
         authority_state: &FreezeConfig,
         config_account: &mut AccountWithMetadata,
         current: &AccountWithMetadata,
     ) -> Result<(), FreezeError> {
+        authority_state.assert(current)?;
         let mut state = Self::from_account(config_account)?;
+        if !state.is_frozen {
+            return Err(FreezeError::AccountNotFrozen);
+        }
         state.set_is_frozen(authority_state, current, false)?;
         state.write_to(config_account)
     }
@@ -195,5 +204,55 @@ mod tests {
     #[test]
     fn frozen_account_state_write_to_rejects_oversized_data() {
         // Same as above — 1-byte encoding can't overflow the data cap.
+    }
+
+    // A release must never write to an untouched marker: on LEZ that write
+    // would be a default-account modification without a claim.
+    #[test]
+    fn perform_release_rejects_never_frozen() {
+        let auth = acct(1, true);
+        let cfg = FreezeConfig::initialize(auth.account_id).unwrap();
+        let mut per_account = AccountWithMetadata {
+            account: Account::default(),
+            is_authorized: false,
+            account_id: AccountId::new([7; 32]),
+        };
+        assert_eq!(
+            FrozenAccountState::perform_release(&cfg, &mut per_account, &auth).unwrap_err(),
+            FreezeError::AccountNotFrozen
+        );
+        assert!(
+            per_account.account.data.is_empty(),
+            "refused release must not write to the marker"
+        );
+    }
+
+    #[test]
+    fn perform_release_rejects_already_released() {
+        let auth = acct(1, true);
+        let cfg = FreezeConfig::initialize(auth.account_id).unwrap();
+        let mut per_account = per_account_with(false);
+        assert_eq!(
+            FrozenAccountState::perform_release(&cfg, &mut per_account, &auth).unwrap_err(),
+            FreezeError::AccountNotFrozen
+        );
+    }
+
+    // Holder check runs first: a non-holder probing an untouched marker
+    // gets NotFreezeAuthority, not the marker's state.
+    #[test]
+    fn perform_release_checks_authority_before_frozen_state() {
+        let auth = acct(1, true);
+        let other = acct(2, true);
+        let cfg = FreezeConfig::initialize(auth.account_id).unwrap();
+        let mut per_account = AccountWithMetadata {
+            account: Account::default(),
+            is_authorized: false,
+            account_id: AccountId::new([7; 32]),
+        };
+        assert_eq!(
+            FrozenAccountState::perform_release(&cfg, &mut per_account, &other).unwrap_err(),
+            FreezeError::NotFreezeAuthority
+        );
     }
 }
