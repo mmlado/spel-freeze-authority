@@ -38,6 +38,8 @@ wrapper = "require_not_frozen"
 [package.metadata.spel.embedded]
 skip = ["freeze_initialize"]
 state_type = "freeze_authority::FreezeConfig"
+anchor_attr = "freeze_initialize"
+anchor_role = "freeze_config"
 
 # Block order is load-bearing. The framework appends bound values to the
 # dispatch call in block order, and every fn declares its trailing params

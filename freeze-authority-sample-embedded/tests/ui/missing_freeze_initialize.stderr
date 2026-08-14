@@ -1,0 +1,13 @@
+error: struct `ProgConfig` carries a #[freeze_slot] field but no fn carries #[freeze_initialize]; the marked field declares embedded mode and nothing anchors it, so the program would compile as dedicated mode with a dead slot window. Anchor the account-creating instruction with #[freeze_initialize], or remove the #[freeze_slot] marker for dedicated mode
+  --> tests/ui/missing_freeze_initialize.rs:19:1
+   |
+19 | #[lez_program]
+   | ^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the attribute macro `lez_program` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0601]: `main` function not found in crate `$CRATE`
+  --> tests/ui/missing_freeze_initialize.rs:32:2
+   |
+32 | }
+   |  ^ consider adding a `main` function to `$DIR/tests/ui/missing_freeze_initialize.rs`

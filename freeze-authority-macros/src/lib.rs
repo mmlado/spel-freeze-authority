@@ -10,6 +10,14 @@ pub fn freeze_authority(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 
+/// Anchor: marks the consumer instruction that creates the embedding
+/// account, putting the extension in embedded mode. The slot is born
+/// vacant, so the attribute expands to nothing.
+#[proc_macro_attribute]
+pub fn freeze_initialize(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
 /// Gate: rejects when the program-wide `is_frozen` flag or the caller's
 /// per-account frozen PDA is set.
 ///

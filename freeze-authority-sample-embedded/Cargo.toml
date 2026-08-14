@@ -17,3 +17,4 @@ freeze-authority = { path = "../freeze-authority" }
 
 [dev-dependencies]
 spel-framework-core = { git = "https://github.com/mmlado/spel.git", branch = "feat/derived_embedding", features = ["idl-gen"] }
+trybuild = "1"

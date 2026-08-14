@@ -1,6 +1,6 @@
-use admin_authority::{AdminCandidate, AdminConfig, admin_initialize};
+use admin_authority::{AdminConfig, admin_initialize};
 use borsh::{BorshDeserialize, BorshSerialize};
-use freeze_authority::{FreezeCandidate, FreezeConfig, freeze_exempt};
+use freeze_authority::{FreezeCandidate, FreezeConfig, freeze_exempt, freeze_initialize};
 use spel_framework::prelude::*;
 
 /// Both authority slots live inside this account: value 0..8,
@@ -38,8 +38,8 @@ impl ProgramConfig {
 }
 
 #[lez_program]
-#[admin_authority(admin_config = config)]
-#[freeze_authority(freeze_config = config)]
+#[admin_authority]
+#[freeze_authority]
 mod freeze_authority_sample_embedded {
     use admin_authority::require_admin;
 
@@ -47,6 +47,7 @@ mod freeze_authority_sample_embedded {
     /// leaves the freeze slot born vacant: the admin appoints the first
     /// holder via freeze_authority_transfer.
     #[admin_initialize]
+    #[freeze_initialize]
     #[instruction]
     pub fn initialize(
         #[account(init, pda = literal("program_config"))] mut config: AccountWithMetadata,
@@ -101,6 +102,7 @@ mod freeze_authority_sample_embedded {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use admin_authority::AdminCandidate;
 
     fn acct(id_byte: u8, signed: bool) -> AccountWithMetadata {
         AccountWithMetadata {
