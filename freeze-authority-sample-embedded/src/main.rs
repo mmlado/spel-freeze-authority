@@ -46,8 +46,7 @@ mod freeze_authority_sample_embedded {
     /// Creates the embedding account, bootstraps the admin slot, and
     /// leaves the freeze slot born vacant: the admin appoints the first
     /// holder via freeze_authority_transfer.
-    #[admin_initialize]
-    #[freeze_initialize]
+    #[initialize]
     #[instruction]
     pub fn initialize(
         #[account(init, pda = literal("program_config"))] mut config: AccountWithMetadata,
