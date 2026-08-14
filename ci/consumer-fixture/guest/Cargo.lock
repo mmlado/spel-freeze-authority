@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "admin-authority"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=40a2f81374c519d7b9b40a31e3c74548282ba7f4#40a2f81374c519d7b9b40a31e3c74548282ba7f4"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=bc82396c0845b90cec54e4cd147604ee1f8faab2#bc82396c0845b90cec54e4cd147604ee1f8faab2"
 dependencies = [
  "admin-authority-macros",
  "borsh",
@@ -17,7 +17,7 @@ dependencies = [
 [[package]]
 name = "admin-authority-macros"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=40a2f81374c519d7b9b40a31e3c74548282ba7f4#40a2f81374c519d7b9b40a31e3c74548282ba7f4"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=bc82396c0845b90cec54e4cd147604ee1f8faab2#bc82396c0845b90cec54e4cd147604ee1f8faab2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1337,7 +1337,7 @@ dependencies = [
 [[package]]
 name = "freeze-authority"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-freeze-authority.git?branch=feat%2Fderived_embedding#13198a9da2bec6c884572844c26d1e7602187801"
+source = "git+https://github.com/mmlado/spel-freeze-authority.git?branch=feat%2Fderived_embedding#c16ab9a6f6242d9c1ba2d0effe3aacfb47af0318"
 dependencies = [
  "admin-authority",
  "borsh",
@@ -1350,7 +1350,7 @@ dependencies = [
 [[package]]
 name = "freeze-authority-macros"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-freeze-authority.git?branch=feat%2Fderived_embedding#13198a9da2bec6c884572844c26d1e7602187801"
+source = "git+https://github.com/mmlado/spel-freeze-authority.git?branch=feat%2Fderived_embedding#c16ab9a6f6242d9c1ba2d0effe3aacfb47af0318"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3389,7 +3389,7 @@ dependencies = [
 [[package]]
 name = "spel-authority"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-authority.git?rev=869249d197121fb667a744e216df9a3b76c3d764#869249d197121fb667a744e216df9a3b76c3d764"
+source = "git+https://github.com/mmlado/spel-authority.git?rev=d08ba2e93391cc07c58eaafbf949c5d4ba02111e#d08ba2e93391cc07c58eaafbf949c5d4ba02111e"
 dependencies = [
  "borsh",
  "serde",
@@ -3399,7 +3399,7 @@ dependencies = [
 [[package]]
 name = "spel-framework"
 version = "0.5.0"
-source = "git+https://github.com/mmlado/spel.git?rev=7b954dbb572f611fbe5ebaa00b75aaa029803e3b#7b954dbb572f611fbe5ebaa00b75aaa029803e3b"
+source = "git+https://github.com/mmlado/spel.git?rev=bbd887728d6c00accccbade5941256e8a43af6b6#bbd887728d6c00accccbade5941256e8a43af6b6"
 dependencies = [
  "borsh",
  "lee_core",
@@ -3411,7 +3411,7 @@ dependencies = [
 [[package]]
 name = "spel-framework-core"
 version = "0.5.0"
-source = "git+https://github.com/mmlado/spel.git?rev=7b954dbb572f611fbe5ebaa00b75aaa029803e3b#7b954dbb572f611fbe5ebaa00b75aaa029803e3b"
+source = "git+https://github.com/mmlado/spel.git?rev=bbd887728d6c00accccbade5941256e8a43af6b6#bbd887728d6c00accccbade5941256e8a43af6b6"
 dependencies = [
  "base58",
  "borsh",
@@ -3428,7 +3428,7 @@ dependencies = [
 [[package]]
 name = "spel-framework-macros"
 version = "0.5.0"
-source = "git+https://github.com/mmlado/spel.git?rev=7b954dbb572f611fbe5ebaa00b75aaa029803e3b#7b954dbb572f611fbe5ebaa00b75aaa029803e3b"
+source = "git+https://github.com/mmlado/spel.git?rev=bbd887728d6c00accccbade5941256e8a43af6b6#bbd887728d6c00accccbade5941256e8a43af6b6"
 dependencies = [
  "proc-macro2",
  "quote",
