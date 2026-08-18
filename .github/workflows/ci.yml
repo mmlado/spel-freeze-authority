@@ -19,25 +19,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: spel-freeze-authority
-      - name: Sibling revs from the manifests
-        id: pins
-        run: |
-          echo "authority=$(grep -rhoP 'spel-authority(\.git)?", (?:branch|rev) = "\K[^"]+' \
-            --include=Cargo.toml . | head -1)" >> "$GITHUB_OUTPUT"
-          echo "admin=$(grep -rhoP 'spel-admin-authority(\.git)?", (?:branch|rev) = "\K[^"]+' \
-            --include=Cargo.toml . | head -1)" >> "$GITHUB_OUTPUT"
-      - name: Check out spel-authority at the pin (IDL tests read its source)
-        uses: actions/checkout@v4
-        with:
-          repository: mmlado/spel-authority
-          ref: ${{ steps.pins.outputs.authority }}
-          path: spel-authority
-      - name: Check out spel-admin-authority at the pin (IDL tests read its source)
-        uses: actions/checkout@v4
-        with:
-          repository: mmlado/spel-admin-authority
-          ref: ${{ steps.pins.outputs.admin }}
-          path: spel-admin-authority
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -100,6 +81,6 @@ jobs:
       # check of the guest crate is the proven trigger surface for the
       # queued-lexer-diagnostic class (prefix `Fp` is unknown).
       - name: Prefetch dependency sources
-        run: cargo fetch --manifest-path ci/consumer-fixture/guest/Cargo.toml
+        run: cargo fetch --locked --manifest-path ci/consumer-fixture/guest/Cargo.toml
       - name: Check the consumer fixture
-        run: cargo check --manifest-path ci/consumer-fixture/guest/Cargo.toml
+        run: cargo check --locked --manifest-path ci/consumer-fixture/guest/Cargo.toml

@@ -40,10 +40,10 @@ jobs:
           "$HOME/.risc0/bin/rzup" install
       - name: Prefetch dependency sources
         if: steps.guard.outputs.skip != 'true'
-        run: cargo fetch --manifest-path ci/consumer-fixture/guest/Cargo.toml
+        run: cargo fetch --locked --manifest-path ci/consumer-fixture/guest/Cargo.toml
       - name: Build the guest ELF
         if: steps.guard.outputs.skip != 'true'
-        run: cargo build --release --manifest-path ci/consumer-fixture/Cargo.toml
+        run: cargo build --release --locked --manifest-path ci/consumer-fixture/Cargo.toml
       - name: Assert the ELF exists
         if: steps.guard.outputs.skip != 'true'
         run: test -f ci/consumer-fixture/target/riscv-guest/consumer-fixture-methods/consumer-fixture-guest/riscv32im-risc0-zkvm-elf/release/consumer_fixture.bin
