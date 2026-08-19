@@ -38,6 +38,8 @@ wrapper = "require_not_frozen"
 [package.metadata.spel.embedded]
 skip = ["freeze_initialize"]
 state_type = "freeze_authority::FreezeConfig"
+anchor_attr = "freeze_initialize"
+anchor_role = "freeze_config"
 
 # Block order is load-bearing. The framework appends bound values to the
 # dispatch call in block order, and every fn declares its trailing params
@@ -55,10 +57,10 @@ default = 0
 [dependencies]
 borsh = { version = "1", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
-spel-framework = { git = "https://github.com/mmlado/spel.git", rev = "f7aa464b2c6c72ef513a25ede16584bca85b722f" }
-admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", rev = "30f75226373ec6cee23d997b399c46174bc6560e" }
+spel-framework = { git = "https://github.com/mmlado/spel.git", rev = "bbd887728d6c00accccbade5941256e8a43af6b6" }
+admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", rev = "e0df2c83f727e6718ff4b7895c98972d561ba1a2" }
 freeze-authority-macros = { path = "../freeze-authority-macros" }
-authority = { git = "https://github.com/mmlado/spel-authority.git", rev = "a490c765a8a45182d6e90deb20aa4cb12470cd5e", package = "spel-authority" }
+authority = { git = "https://github.com/mmlado/spel-authority.git", rev = "cfbd25682e196dba405564c1a83a7f71674662e1", package = "spel-authority" }
 
 [dev-dependencies]
-spel-framework-core = { git = "https://github.com/mmlado/spel.git", rev = "f7aa464b2c6c72ef513a25ede16584bca85b722f", features = ["idl-gen"] }
+spel-framework-core = { git = "https://github.com/mmlado/spel.git", rev = "bbd887728d6c00accccbade5941256e8a43af6b6", features = ["idl-gen"] }

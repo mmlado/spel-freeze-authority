@@ -10,6 +10,14 @@ pub fn freeze_authority(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 
+/// Anchor: marks the consumer instruction that creates the embedding
+/// account, putting the extension in embedded mode. The slot is born
+/// vacant, so the attribute expands to nothing.
+#[proc_macro_attribute]
+pub fn freeze_initialize(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+
 /// Gate: rejects when the program-wide `is_frozen` flag or the caller's
 /// per-account frozen PDA is set.
 ///
@@ -28,23 +36,11 @@ pub fn require_not_frozen(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut config_ident = format_ident!("freeze_config");
     let mut per_account_ident = format_ident!("freeze_account");
-    let mut offset: usize = 0;
+    let mut offset: syn::Expr = syn::parse_quote!(0);
 
     for pair in args {
         if pair.path.is_ident("offset") {
-            let Expr::Lit(syn::ExprLit {
-                lit: syn::Lit::Int(i),
-                ..
-            }) = &pair.value
-            else {
-                return syn::Error::new_spanned(&pair.value, "offset must be an integer literal")
-                    .to_compile_error()
-                    .into();
-            };
-            offset = match i.base10_parse::<usize>() {
-                Ok(v) => v,
-                Err(e) => return e.to_compile_error().into(),
-            };
+            offset = pair.value.clone();
             continue;
         }
         let value_ident = match &pair.value {
