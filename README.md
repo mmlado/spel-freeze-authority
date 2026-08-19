@@ -1,5 +1,11 @@
 # spel-freeze-authority
 
+[![CI](https://github.com/mmlado/spel-freeze-authority/actions/workflows/ci.yml/badge.svg)](https://github.com/mmlado/spel-freeze-authority/actions/workflows/ci.yml)
+[![Consumer build](https://github.com/mmlado/spel-freeze-authority/actions/workflows/consumer-build.yml/badge.svg)](https://github.com/mmlado/spel-freeze-authority/actions/workflows/consumer-build.yml)
+[![Version](https://img.shields.io/github/v/tag/mmlado/spel-freeze-authority?label=version)](https://github.com/mmlado/spel-freeze-authority/releases)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](LICENSE-MIT)
+[![MSRV](https://img.shields.io/badge/MSRV-1.88-93450a?logo=rust)](Cargo.toml)
+
 A SPEL library that adds a freeze pattern to LEZ programs: a program-wide frozen flag and a per-account blocklist, both managed by a dedicated freeze authority. Delivered under [RFP-002](https://github.com/logos-co/rfp/blob/main/RFPs/RFP-002-freeze-authority-lib.md), proposal in [logos-co/rfp#47](https://github.com/logos-co/rfp/issues/47).
 
 ## What it does
@@ -71,19 +77,25 @@ Instruction data is unchanged by the gates in both modes. The 132 byte data on `
 - [docs/dry-run-output.txt](docs/dry-run-output.txt) is a captured CLI dry-run across the auto-gated consumer instruction and every freeze management instruction. Regenerate with `scripts/dry-run.sh` after any change to the sample or the framework.
 - [docs/dry-run-embedded-output.txt](docs/dry-run-embedded-output.txt) is the same capture for the embedded sample, showing the shared account appearing once per transaction. Regenerate with `scripts/dry-run-embedded.sh`.
 
-The framework-side extension mechanism (discovery, injection, auto-wrap, cross-marker bound args, the shared-account merge) lives in the [spel fork](https://github.com/mmlado/spel) on the `feat/admin_authority_m3` branch.
+The framework-side extension mechanism (discovery, injection, auto-wrap, cross-marker bound args, the shared-account merge) lives on the [spel fork](https://github.com/mmlado/spel)'s main, upstreaming via [logos-co/spel#257](https://github.com/logos-co/spel/pull/257).
 
 ## Dependencies
 
-The three cross-repo dependencies are pinned to exact revs so the review surface is reproducible from git state alone. Current baseline:
+The library and admin dependencies pin release tags, the framework pins an exact rev until it has an upstream release. The committed Cargo.lock resolves every pin to a concrete commit either way. Current baseline:
 
-| Dep | Repo | Branch | Rev |
-| --- | --- | --- | --- |
-| `spel-framework` | [mmlado/spel](https://github.com/mmlado/spel) | `feat/admin_authority_m3` | `f7aa464` |
-| `admin-authority` | [mmlado/spel-admin-authority](https://github.com/mmlado/spel-admin-authority) | `m3` | `30f7522` |
-| `authority` (`spel-authority`) | [mmlado/spel-authority](https://github.com/mmlado/spel-authority) | `m3` | `a490c76` |
+| Dep | Repo | Pin |
+| --- | --- | --- |
+| `spel-framework` | [mmlado/spel](https://github.com/mmlado/spel) | rev `f7aa464` (v0.6.0 plus the extension mechanism) |
+| `admin-authority` | [mmlado/spel-admin-authority](https://github.com/mmlado/spel-admin-authority) | tag `v0.1.0` |
+| `authority` (`spel-authority`) | [mmlado/spel-authority](https://github.com/mmlado/spel-authority) | tag `v0.1.0` |
 
-Bumping any of these requires updating the `rev` field in all Cargo.toml files that reference the dep (`freeze-authority/`, `freeze-authority-sample/`, `freeze-authority-sample-manual/`, `freeze-authority-sample-embedded/`) plus this table.
+Bumping any of these requires updating the pin in all Cargo.toml files that reference the dep (`freeze-authority/`, `freeze-authority-sample/`, `freeze-authority-sample-manual/`, `freeze-authority-sample-embedded/`) plus this table.
+
+## Versioning and stability
+
+Semantic versioning covers five surfaces: the public Rust API, the attribute names (`#[freeze_authority]`, `#[freeze_initialize]`, `#[freeze_slot]`, `#[require_not_frozen]`, `#[freeze_exempt]`) with their argument grammar, the `[package.metadata.spel]` contract this crate declares including the wrap and bound-arg entries, `FreezeConfig`'s 33-byte borsh encoding, an on-chain wire format, and the cross-marker offset contract peers read admin state through. While the version is 0.x, a minor bump may change any of them, and each such change is called out in the changelog.
+
+The `spel-framework` dependency pins a fork revision for now. Version 1.0.0 lands when the extension mechanism reaches an upstream release ([logos-co/spel#257](https://github.com/logos-co/spel/pull/257)) and the pin moves to it.
 
 ## Support
 

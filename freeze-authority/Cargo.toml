@@ -1,6 +1,10 @@
 [package]
 name = "freeze-authority"
 version = "0.1.0"
+rust-version = "1.88"
+description = "Freeze extension for SPEL programs, program-wide and per-account freezing governed by a freeze authority"
+repository = "https://github.com/mmlado/spel-freeze-authority"
+readme = "README.md"
 edition.workspace = true
 license.workspace = true
 
@@ -56,9 +60,9 @@ default = 0
 borsh = { version = "1", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 spel-framework = { git = "https://github.com/mmlado/spel.git", rev = "f7aa464b2c6c72ef513a25ede16584bca85b722f" }
-admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", rev = "30f75226373ec6cee23d997b399c46174bc6560e" }
+admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", tag = "v0.1.0" }
 freeze-authority-macros = { path = "../freeze-authority-macros" }
-authority = { git = "https://github.com/mmlado/spel-authority.git", rev = "a490c765a8a45182d6e90deb20aa4cb12470cd5e", package = "spel-authority" }
+authority = { git = "https://github.com/mmlado/spel-authority.git", tag = "v0.1.0", package = "spel-authority" }
 
 [dev-dependencies]
 spel-framework-core = { git = "https://github.com/mmlado/spel.git", rev = "f7aa464b2c6c72ef513a25ede16584bca85b722f", features = ["idl-gen"] }

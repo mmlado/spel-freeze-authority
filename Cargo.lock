@@ -5,19 +5,19 @@ version = 4
 [[package]]
 name = "admin-authority"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=30f75226373ec6cee23d997b399c46174bc6560e#30f75226373ec6cee23d997b399c46174bc6560e"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?tag=v0.1.0#3457437170852ce1a84083ce83f7079133bd4158"
 dependencies = [
  "admin-authority-macros",
  "borsh",
  "serde",
- "spel-authority",
+ "spel-authority 0.1.0 (git+https://github.com/mmlado/spel-authority.git?rev=a490c765a8a45182d6e90deb20aa4cb12470cd5e)",
  "spel-framework",
 ]
 
 [[package]]
 name = "admin-authority-macros"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=30f75226373ec6cee23d997b399c46174bc6560e#30f75226373ec6cee23d997b399c46174bc6560e"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?tag=v0.1.0#3457437170852ce1a84083ce83f7079133bd4158"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -819,7 +819,7 @@ dependencies = [
  "borsh",
  "freeze-authority-macros",
  "serde",
- "spel-authority",
+ "spel-authority 0.1.0 (git+https://github.com/mmlado/spel-authority.git?tag=v0.1.0)",
  "spel-framework",
  "spel-framework-core",
 ]
@@ -1862,6 +1862,16 @@ name = "slab"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
+
+[[package]]
+name = "spel-authority"
+version = "0.1.0"
+source = "git+https://github.com/mmlado/spel-authority.git?tag=v0.1.0#1af18a91f44a0d0d3181b795e448870e44011cde"
+dependencies = [
+ "borsh",
+ "serde",
+ "spel-framework",
+]
 
 [[package]]
 name = "spel-authority"
