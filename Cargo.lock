@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "admin-authority"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=bc82396c0845b90cec54e4cd147604ee1f8faab2#bc82396c0845b90cec54e4cd147604ee1f8faab2"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=e0df2c83f727e6718ff4b7895c98972d561ba1a2#e0df2c83f727e6718ff4b7895c98972d561ba1a2"
 dependencies = [
  "admin-authority-macros",
  "borsh",
@@ -17,7 +17,7 @@ dependencies = [
 [[package]]
 name = "admin-authority-macros"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=bc82396c0845b90cec54e4cd147604ee1f8faab2#bc82396c0845b90cec54e4cd147604ee1f8faab2"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=e0df2c83f727e6718ff4b7895c98972d561ba1a2#e0df2c83f727e6718ff4b7895c98972d561ba1a2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1982,7 +1982,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 [[package]]
 name = "spel-authority"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-authority.git?rev=d08ba2e93391cc07c58eaafbf949c5d4ba02111e#d08ba2e93391cc07c58eaafbf949c5d4ba02111e"
+source = "git+https://github.com/mmlado/spel-authority.git?rev=cfbd25682e196dba405564c1a83a7f71674662e1#cfbd25682e196dba405564c1a83a7f71674662e1"
 dependencies = [
  "borsh",
  "serde",
