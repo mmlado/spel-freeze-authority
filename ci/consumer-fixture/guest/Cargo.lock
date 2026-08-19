@@ -5,13 +5,35 @@ version = 4
 [[package]]
 name = "admin-authority"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=30f75226373ec6cee23d997b399c46174bc6560e#30f75226373ec6cee23d997b399c46174bc6560e"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?tag=v0.1.0#3457437170852ce1a84083ce83f7079133bd4158"
 dependencies = [
- "admin-authority-macros",
+ "admin-authority-macros 0.1.0 (git+https://github.com/mmlado/spel-admin-authority.git?tag=v0.1.0)",
  "borsh",
  "serde",
  "spel-authority",
  "spel-framework",
+]
+
+[[package]]
+name = "admin-authority"
+version = "0.1.0"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=30f75226373ec6cee23d997b399c46174bc6560e#30f75226373ec6cee23d997b399c46174bc6560e"
+dependencies = [
+ "admin-authority-macros 0.1.0 (git+https://github.com/mmlado/spel-admin-authority.git?rev=30f75226373ec6cee23d997b399c46174bc6560e)",
+ "borsh",
+ "serde",
+ "spel-authority",
+ "spel-framework",
+]
+
+[[package]]
+name = "admin-authority-macros"
+version = "0.1.0"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?tag=v0.1.0#3457437170852ce1a84083ce83f7079133bd4158"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -782,7 +804,7 @@ dependencies = [
 name = "consumer-fixture-guest"
 version = "0.1.0"
 dependencies = [
- "admin-authority",
+ "admin-authority 0.1.0 (git+https://github.com/mmlado/spel-admin-authority.git?tag=v0.1.0)",
  "borsh",
  "freeze-authority",
  "lee_core",
@@ -1337,9 +1359,9 @@ dependencies = [
 [[package]]
 name = "freeze-authority"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-freeze-authority.git?branch=m3#9adc98d5e025d4f46fb9c28b96b379e9130eface"
+source = "git+https://github.com/mmlado/spel-freeze-authority.git?branch=main#8bf176a485c78e8f55aa89a1734b5243cf21a91e"
 dependencies = [
- "admin-authority",
+ "admin-authority 0.1.0 (git+https://github.com/mmlado/spel-admin-authority.git?rev=30f75226373ec6cee23d997b399c46174bc6560e)",
  "borsh",
  "freeze-authority-macros",
  "serde",
@@ -1350,7 +1372,7 @@ dependencies = [
 [[package]]
 name = "freeze-authority-macros"
 version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-freeze-authority.git?branch=m3#9adc98d5e025d4f46fb9c28b96b379e9130eface"
+source = "git+https://github.com/mmlado/spel-freeze-authority.git?branch=main#8bf176a485c78e8f55aa89a1734b5243cf21a91e"
 dependencies = [
  "proc-macro2",
  "quote",
