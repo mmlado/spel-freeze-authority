@@ -1,0 +1,64 @@
+[package]
+name = "freeze-authority"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[package.metadata.spel]
+extension_attr = "freeze_authority"
+
+[package.metadata.spel.wrap_instructions]
+wrapper = "freeze_authority::require_not_frozen"
+skip = "manual"
+self_exempt_marker = "freeze_exempt"
+exempt = [
+  "admin_authority::admin_initialize",
+  "admin_authority::admin_transfer",
+  "admin_authority::admin_renounce",
+]
+
+[[package.metadata.spel.inject]]
+wrapper = "require_not_frozen"
+
+  [[package.metadata.spel.inject.account]]
+  name = "freeze_config"
+  seed = { const = "freeze_config" }
+
+  [[package.metadata.spel.inject.account]]
+  name = "freeze_account"
+  seed = [{ const = "frozen" }, { account = "caller" }]
+
+  [[package.metadata.spel.inject.account]]
+  name = "caller"
+  signer = true
+
+[package.metadata.spel.embedded]
+skip = ["freeze_initialize"]
+state_type = "freeze_authority::FreezeConfig"
+
+# Block order is load-bearing. The framework appends bound values to the
+# dispatch call in block order, and every fn declares its trailing params
+# in the same order: offset first, admin_offset second.
+[[package.metadata.spel.bound_args]]
+arg = "offset"
+from = "offset"
+default = 0
+
+[[package.metadata.spel.bound_args]]
+arg = "admin_offset"
+from = "admin_authority::offset"
+default = 0
+
+[dependencies]
+borsh = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+spel-framework = { git = "https://github.com/mmlado/spel.git", rev = "f7aa464b2c6c72ef513a25ede16584bca85b722f" }
+admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", rev = "30f75226373ec6cee23d997b399c46174bc6560e" }
+freeze-authority-macros = { path = "../freeze-authority-macros" }
+authority = { git = "https://github.com/mmlado/spel-authority.git", rev = "a490c765a8a45182d6e90deb20aa4cb12470cd5e", package = "spel-authority" }
+
+[dev-dependencies]
+spel-framework-core = { git = "https://github.com/mmlado/spel.git", rev = "f7aa464b2c6c72ef513a25ede16584bca85b722f", features = ["idl-gen"] }

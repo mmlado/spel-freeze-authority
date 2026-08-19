@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [m3, main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: spel-freeze-authority
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: spel-freeze-authority
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: spel-freeze-authority
+      - name: Prefetch dependency sources (discovery reads git checkouts offline)
+        run: cargo fetch
+      - name: Formatting
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets
+      - name: Tests, IDL pins included
+        run: RISC0_DEV_MODE=1 cargo test --workspace
+
+  dry-run:
+    name: Dry-run byte compare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: dry-run
+      - name: Locate the pinned framework rev
+        id: rev
+        run: |
+          rev=$(grep -rhoP 'github.com/mmlado/spel(\.git)?", (?:branch|rev) = "\K[^"]+' \
+            --include=Cargo.toml . | head -1)
+          echo "rev=$rev" >> "$GITHUB_OUTPUT"
+      - name: Check out the framework at the pin
+        uses: actions/checkout@v4
+        with:
+          repository: mmlado/spel
+          ref: ${{ steps.rev.outputs.rev }}
+          path: framework-pin
+      - name: Prefetch dependency sources (IDL type collection reads git checkouts)
+        run: cargo fetch
+      - name: Byte-compare every capture
+        run: |
+          set -euo pipefail
+          for script in scripts/dry-run*.sh; do
+            name=$(basename "$script" .sh)
+            expected="docs/${name}-output.txt"
+            bash "$script" "$PWD/framework-pin" > /tmp/capture.txt 2>&1
+            diff "$expected" /tmp/capture.txt
+            echo "$name matches $expected"
+          done
+
+  consumer-check:
+    name: Consumer fixture host check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ci/consumer-fixture/guest
+      # A realistic downstream lockfile pulls the arkworks stack. The host
+      # check of the guest crate is the proven trigger surface for the
+      # queued-lexer-diagnostic class (prefix `Fp` is unknown).
+      - name: Prefetch dependency sources
+        run: cargo fetch --locked --manifest-path ci/consumer-fixture/guest/Cargo.toml
+      - name: Check the consumer fixture
+        run: cargo check --locked --manifest-path ci/consumer-fixture/guest/Cargo.toml

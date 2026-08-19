@@ -1,0 +1,267 @@
+== Building spel CLI ==
+== Generating IDL from embedded sample ==
+
+── initialize --signer 1111111111111111111111111111111111111111111111111111111111111111 ──────────────────────────────
+📋 Instruction: initialize
+
+=== Dry Run ===
+Program ID: abababababababababababababababababababababababababababababababab
+Instruction: initialize
+
+Accounts:
+  PDA config → 3oLE2nK8zsrUzkNDfK3LqFuLidpchRMPoytsmbcHFQwY [writable]
+    seeds: [program_id, "program_config"]
+  signer → 0x1111111111111111111111111111111111111111111111111111111111111111 [signer]
+
+Arguments:
+
+Instruction data: 0x00000000
+
+Signers:
+  signer: nonce=(unknown)
+================
+Dry run complete — not submitted.
+
+── update-value --caller 1111111111111111111111111111111111111111111111111111111111111111 --new-value 42 ──────────────────────────────
+📋 Instruction: update_value
+
+=== Dry Run ===
+Program ID: abababababababababababababababababababababababababababababababab
+Instruction: update_value
+
+Accounts:
+  caller → 0x1111111111111111111111111111111111111111111111111111111111111111 [signer]
+  PDA freeze_account → AAxH4yy8BZAi2uHPNDJHycgzi2b9eiasnfGXQ4r5CkjM
+    seeds: [program_id, "frozen", Account(caller)]
+  PDA config → 3oLE2nK8zsrUzkNDfK3LqFuLidpchRMPoytsmbcHFQwY [writable]
+    seeds: [program_id, "program_config"]
+
+Arguments:
+  --new-value 42
+
+Instruction data: 0x010000002a00000000000000
+
+Signers:
+  caller: nonce=(unknown)
+================
+Dry run complete — not submitted.
+
+── read-value ──────────────────────────────
+📋 Instruction: read_value
+
+=== Dry Run ===
+Program ID: abababababababababababababababababababababababababababababababab
+Instruction: read_value
+
+Accounts:
+  PDA config → 3oLE2nK8zsrUzkNDfK3LqFuLidpchRMPoytsmbcHFQwY
+    seeds: [program_id, "program_config"]
+
+Arguments:
+
+Instruction data: 0x02000000
+================
+Dry run complete — not submitted.
+
+── withdraw --caller 1111111111111111111111111111111111111111111111111111111111111111 ──────────────────────────────
+📋 Instruction: withdraw
+
+=== Dry Run ===
+Program ID: abababababababababababababababababababababababababababababababab
+Instruction: withdraw
+
+Accounts:
+  caller → 0x1111111111111111111111111111111111111111111111111111111111111111 [signer]
+  PDA config → 3oLE2nK8zsrUzkNDfK3LqFuLidpchRMPoytsmbcHFQwY [writable]
+    seeds: [program_id, "program_config"]
+
+Arguments:
+
+Instruction data: 0x03000000
+
+Signers:
+  caller: nonce=(unknown)
+================
+Dry run complete — not submitted.
+
+── admin-transfer --caller 1111111111111111111111111111111111111111111111111111111111111111 --new-account 2222222222222222222222222222222222222222222222222222222222222222 --candidate Signer ──────────────────────────────
+📋 Instruction: admin_transfer
+
+=== Dry Run ===
+Program ID: abababababababababababababababababababababababababababababababab
+Instruction: admin_transfer
+
+Accounts:
+  PDA config → 3oLE2nK8zsrUzkNDfK3LqFuLidpchRMPoytsmbcHFQwY [writable]
+    seeds: [program_id, "program_config"]
+  caller → 0x1111111111111111111111111111111111111111111111111111111111111111 [signer]
+  new_account → 0x2222222222222222222222222222222222222222222222222222222222222222
+
+Arguments:
+  --candidate Signer
+
+Instruction data: 0x0400000000000000
+
+Signers:
+  caller: nonce=(unknown)
+================
+Dry run complete — not submitted.
+
+── freeze-authority-transfer --caller 1111111111111111111111111111111111111111111111111111111111111111 --new-account 3333333333333333333333333333333333333333333333333333333333333333 --candidate Signer ──────────────────────────────
+📋 Instruction: freeze_authority_transfer
+
+=== Dry Run ===
+Program ID: abababababababababababababababababababababababababababababababab
+Instruction: freeze_authority_transfer
+
+Accounts:
+  PDA config → 3oLE2nK8zsrUzkNDfK3LqFuLidpchRMPoytsmbcHFQwY [writable]
+    seeds: [program_id, "program_config"]
+  caller → 0x1111111111111111111111111111111111111111111111111111111111111111 [signer]
+  new_account → 0x3333333333333333333333333333333333333333333333333333333333333333
+
+Arguments:
+  --candidate Signer
+
+Instruction data: 0x0600000000000000
+
+Signers:
+  caller: nonce=(unknown)
+================
+Dry run complete — not submitted.
+
+── freeze-program --caller 3333333333333333333333333333333333333333333333333333333333333333 ──────────────────────────────
+📋 Instruction: freeze_program
+
+=== Dry Run ===
+Program ID: abababababababababababababababababababababababababababababababab
+Instruction: freeze_program
+
+Accounts:
+  PDA config → 3oLE2nK8zsrUzkNDfK3LqFuLidpchRMPoytsmbcHFQwY [writable]
+    seeds: [program_id, "program_config"]
+  PDA freeze_account → 8D8WxLuQz48T5Gn2gPBb482mECZ3m8NqxXNKff3UpXBB
+    seeds: [program_id, "frozen", Account(caller)]
+  caller → 0x3333333333333333333333333333333333333333333333333333333333333333 [signer]
+
+Arguments:
+
+Instruction data: 0x08000000
+
+Signers:
+  caller: nonce=(unknown)
+================
+Dry run complete — not submitted.
+
+── freeze-program-release --caller 3333333333333333333333333333333333333333333333333333333333333333 ──────────────────────────────
+📋 Instruction: freeze_program_release
+
+=== Dry Run ===
+Program ID: abababababababababababababababababababababababababababababababab
+Instruction: freeze_program_release
+
+Accounts:
+  PDA config → 3oLE2nK8zsrUzkNDfK3LqFuLidpchRMPoytsmbcHFQwY [writable]
+    seeds: [program_id, "program_config"]
+  caller → 0x3333333333333333333333333333333333333333333333333333333333333333 [signer]
+
+Arguments:
+
+Instruction data: 0x09000000
+
+Signers:
+  caller: nonce=(unknown)
+================
+Dry run complete — not submitted.
+
+── freeze-account --caller 3333333333333333333333333333333333333333333333333333333333333333 --target 4444444444444444444444444444444444444444444444444444444444444444 ──────────────────────────────
+📋 Instruction: freeze_account
+
+=== Dry Run ===
+Program ID: abababababababababababababababababababababababababababababababab
+Instruction: freeze_account
+
+Accounts:
+  PDA config → 3oLE2nK8zsrUzkNDfK3LqFuLidpchRMPoytsmbcHFQwY
+    seeds: [program_id, "program_config"]
+  PDA frozen_pda → DazDj2XuXpyCkpUV5WX9ADFVZgovDXVKpbFjkq2Gwe5v [writable]
+    seeds: [program_id, "frozen", Arg(target)]
+  caller → 0x3333333333333333333333333333333333333333333333333333333333333333 [signer]
+
+Arguments:
+  --target "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD" (hex: 4444444444444444444444444444444444444444444444444444444444444444)
+
+Instruction data: 0x0a0000004400000044000000440000004400000044000000440000004400000044000000440000004400000044000000440000004400000044000000440000004400000044000000440000004400000044000000440000004400000044000000440000004400000044000000440000004400000044000000440000004400000044000000
+
+Signers:
+  caller: nonce=(unknown)
+================
+Dry run complete — not submitted.
+
+── freeze-account-release --caller 3333333333333333333333333333333333333333333333333333333333333333 --target 4444444444444444444444444444444444444444444444444444444444444444 ──────────────────────────────
+📋 Instruction: freeze_account_release
+
+=== Dry Run ===
+Program ID: abababababababababababababababababababababababababababababababab
+Instruction: freeze_account_release
+
+Accounts:
+  PDA config → 3oLE2nK8zsrUzkNDfK3LqFuLidpchRMPoytsmbcHFQwY
+    seeds: [program_id, "program_config"]
+  PDA frozen_pda → DazDj2XuXpyCkpUV5WX9ADFVZgovDXVKpbFjkq2Gwe5v [writable]
+    seeds: [program_id, "frozen", Arg(target)]
+  caller → 0x3333333333333333333333333333333333333333333333333333333333333333 [signer]
+
+Arguments:
+  --target "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD" (hex: 4444444444444444444444444444444444444444444444444444444444444444)
+
+Instruction data: 0x0b0000004400000044000000440000004400000044000000440000004400000044000000440000004400000044000000440000004400000044000000440000004400000044000000440000004400000044000000440000004400000044000000440000004400000044000000440000004400000044000000440000004400000044000000
+
+Signers:
+  caller: nonce=(unknown)
+================
+Dry run complete — not submitted.
+
+── freeze-authority-renounce --caller 3333333333333333333333333333333333333333333333333333333333333333 ──────────────────────────────
+📋 Instruction: freeze_authority_renounce
+
+=== Dry Run ===
+Program ID: abababababababababababababababababababababababababababababababab
+Instruction: freeze_authority_renounce
+
+Accounts:
+  PDA config → 3oLE2nK8zsrUzkNDfK3LqFuLidpchRMPoytsmbcHFQwY [writable]
+    seeds: [program_id, "program_config"]
+  caller → 0x3333333333333333333333333333333333333333333333333333333333333333 [signer]
+
+Arguments:
+
+Instruction data: 0x07000000
+
+Signers:
+  caller: nonce=(unknown)
+================
+Dry run complete — not submitted.
+
+── admin-renounce --caller 1111111111111111111111111111111111111111111111111111111111111111 ──────────────────────────────
+📋 Instruction: admin_renounce
+
+=== Dry Run ===
+Program ID: abababababababababababababababababababababababababababababababab
+Instruction: admin_renounce
+
+Accounts:
+  PDA config → 3oLE2nK8zsrUzkNDfK3LqFuLidpchRMPoytsmbcHFQwY [writable]
+    seeds: [program_id, "program_config"]
+  caller → 0x1111111111111111111111111111111111111111111111111111111111111111 [signer]
+
+Arguments:
+
+Instruction data: 0x05000000
+
+Signers:
+  caller: nonce=(unknown)
+================
+Dry run complete — not submitted.
+
+Done.

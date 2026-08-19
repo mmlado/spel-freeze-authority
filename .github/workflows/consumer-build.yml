@@ -1,0 +1,49 @@
+name: Consumer build
+
+# The real risc0 guest build of the consumer fixture. Covers riscv-only
+# failure classes the host check cannot see (toolchain drift, target cfg,
+# linker). Slow, so it runs on demand and weekly rather than per push.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * 1"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  consumer-build:
+    name: Consumer fixture guest build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Scheduled runs skip when this commit already built successfully.
+      # Manual dispatch always builds, which is the probe for toolchain
+      # drift against an unchanged tree.
+      - name: Skip unchanged scheduled runs
+        id: guard
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last=$(gh api "repos/${{ github.repository }}/actions/workflows/consumer-build.yml/runs?status=success&per_page=1" -q '.workflow_runs[0].head_sha' 2>/dev/null || true)
+          if [ "$last" = "${{ github.sha }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.guard.outputs.skip != 'true'
+      - name: Install the risc0 toolchain
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          curl -L https://risczero.com/install | bash
+          echo "$HOME/.risc0/bin" >> "$GITHUB_PATH"
+          "$HOME/.risc0/bin/rzup" install
+      - name: Prefetch dependency sources
+        if: steps.guard.outputs.skip != 'true'
+        run: cargo fetch --locked --manifest-path ci/consumer-fixture/guest/Cargo.toml
+      - name: Build the guest ELF
+        if: steps.guard.outputs.skip != 'true'
+        run: cargo build --release --locked --manifest-path ci/consumer-fixture/Cargo.toml
+      - name: Assert the ELF exists
+        if: steps.guard.outputs.skip != 'true'
+        run: test -f ci/consumer-fixture/target/riscv-guest/consumer-fixture-methods/consumer-fixture-guest/riscv32im-risc0-zkvm-elf/release/consumer_fixture.bin
