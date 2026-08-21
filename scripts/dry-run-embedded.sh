@@ -36,7 +36,7 @@ run() {
     "$SPEL_BIN" --idl "$IDL" --program "$PROG_ID" --dry-run -- "$@" 2>&1
 }
 
-run initialize --signer "$CALLER"
+run initialize --caller "$CALLER"
 run update-value --caller "$CALLER" --new-value 42
 run read-value
 run withdraw --caller "$CALLER"
