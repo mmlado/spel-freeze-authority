@@ -43,15 +43,11 @@ mod freeze_authority_sample {
     #[instruction]
     #[freeze_exempt]
     pub fn initialize(
-        #[account(pda = literal("admin_config"))] admin_config: AccountWithMetadata,
-        #[account(signer)] caller: AccountWithMetadata,
         #[account(init, pda = literal("program_config"))] mut config: AccountWithMetadata,
     ) -> SpelResult {
         ProgramConfig::default().write_to(&mut config)?;
-        Ok(SpelOutput::execute(
-            vec![admin_config, caller, config],
-            vec![],
-        ))
+        // The gate's admin_config and caller params arrive by injection.
+        Ok(SpelOutput::execute(vec![config], vec![]))
     }
 
     /// Auto-gated. Framework prepends `require_not_frozen`, so this

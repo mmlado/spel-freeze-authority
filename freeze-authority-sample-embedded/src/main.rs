@@ -50,7 +50,6 @@ mod freeze_authority_sample_embedded {
     #[instruction]
     pub fn initialize(
         #[account(init, pda = literal("program_config"))] mut config: AccountWithMetadata,
-        #[account(signer)] signer: AccountWithMetadata,
     ) -> SpelResult {
         ProgramConfig {
             value: 0,
@@ -59,7 +58,9 @@ mod freeze_authority_sample_embedded {
             freeze: FreezeConfig::default(),
         }
         .write_to(&mut config)?;
-        Ok(SpelOutput::execute(vec![config, signer], vec![]))
+        // The signing caller is injected, the injected bootstrap
+        // installs it as admin, and the freeze slot stays vacant.
+        Ok(SpelOutput::execute(vec![config], vec![]))
     }
 
     /// Gated. The embedding account is declared, injection skips it, and

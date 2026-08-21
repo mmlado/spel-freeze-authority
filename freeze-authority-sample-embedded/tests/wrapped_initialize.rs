@@ -4,7 +4,8 @@
 //! create, so the embedded sample could never be initialized on-chain.
 //! The framework now skips a gate on the fn that creates the gate's
 //! embedding account, and stops injecting the gate's params there, so
-//! this fn's arity is the consumer's own two accounts.
+//! this fn's params are the declared account plus admin's injected
+//! caller, which leads.
 
 include!("../src/main.rs");
 
@@ -21,7 +22,7 @@ fn initialize_succeeds_on_a_fresh_account() {
         account_id: AccountId::new([2; 32]),
     };
 
-    let result = freeze_authority_sample_embedded::initialize(config, signer);
+    let result = freeze_authority_sample_embedded::initialize(signer, config);
     assert!(
         result.is_ok(),
         "the embedding account's creator must not be gated: {result:?}"

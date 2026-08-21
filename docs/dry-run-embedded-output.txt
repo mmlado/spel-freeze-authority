@@ -1,7 +1,7 @@
 == Building spel CLI ==
 == Generating IDL from embedded sample ==
 
-── initialize --signer 1111111111111111111111111111111111111111111111111111111111111111 ──────────────────────────────
+── initialize --caller 1111111111111111111111111111111111111111111111111111111111111111 ──────────────────────────────
 📋 Instruction: initialize
 
 === Dry Run ===
@@ -9,16 +9,16 @@ Program ID: abababababababababababababababababababababababababababababababab
 Instruction: initialize
 
 Accounts:
+  caller → 0x1111111111111111111111111111111111111111111111111111111111111111 [signer]
   PDA config → 3oLE2nK8zsrUzkNDfK3LqFuLidpchRMPoytsmbcHFQwY [writable]
     seeds: [program_id, "program_config"]
-  signer → 0x1111111111111111111111111111111111111111111111111111111111111111 [signer]
 
 Arguments:
 
 Instruction data: 0x00000000
 
 Signers:
-  signer: nonce=(unknown)
+  caller: nonce=(unknown)
 ================
 Dry run complete — not submitted.
 
