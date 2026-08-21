@@ -1,6 +1,6 @@
 [package]
 name = "freeze-authority"
-version = "0.1.0"
+version.workspace = true
 rust-version = "1.88"
 description = "Freeze extension for SPEL programs, program-wide and per-account freezing governed by a freeze authority"
 repository = "https://github.com/mmlado/spel-freeze-authority"

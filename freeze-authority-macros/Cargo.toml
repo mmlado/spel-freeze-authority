@@ -1,6 +1,6 @@
 [package]
 name = "freeze-authority-macros"
-version = "0.1.0"
+version.workspace = true
 rust-version = "1.88"
 description = "Proc-macro attributes for the freeze-authority SPEL extension"
 repository = "https://github.com/mmlado/spel-freeze-authority"
