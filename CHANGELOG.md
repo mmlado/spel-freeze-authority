@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-24
+
+### Changed
+
+- Move `admin-authority` to its `v0.1.2` tag, which aligns the shared
+  `spel-authority` pin, one copy of the crate in a dual consumer.
+
 ## [0.1.1] - 2026-08-20
 
 ### Changed
@@ -48,6 +55,7 @@ First release.
 - Docs packet: CONTEXT.md vocabulary, account model, authority
   lifecycle, and ADRs.
 
-[Unreleased]: https://github.com/mmlado/spel-freeze-authority/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/mmlado/spel-freeze-authority/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/mmlado/spel-freeze-authority/releases/tag/v0.1.2
 [0.1.1]: https://github.com/mmlado/spel-freeze-authority/releases/tag/v0.1.1
 [0.1.0]: https://github.com/mmlado/spel-freeze-authority/releases/tag/v0.1.0

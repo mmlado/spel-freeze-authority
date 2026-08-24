@@ -4,20 +4,20 @@ version = 4
 
 [[package]]
 name = "admin-authority"
-version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-admin-authority.git?tag=v0.1.0#3457437170852ce1a84083ce83f7079133bd4158"
+version = "0.1.2"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?tag=v0.1.2#412de83963ecf2055376f080db5cd5b841d39458"
 dependencies = [
  "admin-authority-macros",
  "borsh",
  "serde",
- "spel-authority 0.1.0 (git+https://github.com/mmlado/spel-authority.git?rev=a490c765a8a45182d6e90deb20aa4cb12470cd5e)",
+ "spel-authority",
  "spel-framework",
 ]
 
 [[package]]
 name = "admin-authority-macros"
-version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-admin-authority.git?tag=v0.1.0#3457437170852ce1a84083ce83f7079133bd4158"
+version = "0.1.2"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?tag=v0.1.2#412de83963ecf2055376f080db5cd5b841d39458"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -813,20 +813,20 @@ checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
 
 [[package]]
 name = "freeze-authority"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "admin-authority",
  "borsh",
  "freeze-authority-macros",
  "serde",
- "spel-authority 0.1.0 (git+https://github.com/mmlado/spel-authority.git?tag=v0.1.0)",
+ "spel-authority",
  "spel-framework",
  "spel-framework-core",
 ]
 
 [[package]]
 name = "freeze-authority-macros"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -835,7 +835,7 @@ dependencies = [
 
 [[package]]
 name = "freeze-authority-sample"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "admin-authority",
  "borsh",
@@ -848,7 +848,7 @@ dependencies = [
 
 [[package]]
 name = "freeze-authority-sample-embedded"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "admin-authority",
  "borsh",
@@ -861,7 +861,7 @@ dependencies = [
 
 [[package]]
 name = "freeze-authority-sample-manual"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "admin-authority",
  "borsh",
@@ -1867,16 +1867,6 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 name = "spel-authority"
 version = "0.1.0"
 source = "git+https://github.com/mmlado/spel-authority.git?tag=v0.1.0#1af18a91f44a0d0d3181b795e448870e44011cde"
-dependencies = [
- "borsh",
- "serde",
- "spel-framework",
-]
-
-[[package]]
-name = "spel-authority"
-version = "0.1.0"
-source = "git+https://github.com/mmlado/spel-authority.git?rev=a490c765a8a45182d6e90deb20aa4cb12470cd5e#a490c765a8a45182d6e90deb20aa4cb12470cd5e"
 dependencies = [
  "borsh",
  "serde",
