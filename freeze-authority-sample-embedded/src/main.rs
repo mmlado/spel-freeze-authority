@@ -1,4 +1,4 @@
-use admin_authority::{AdminCandidate, AdminConfig, admin_initialize};
+use admin_authority::{AdminConfig, admin_initialize};
 use borsh::{BorshDeserialize, BorshSerialize};
 use freeze_authority::{FreezeCandidate, FreezeConfig, freeze_exempt};
 use spel_framework::prelude::*;
@@ -102,6 +102,7 @@ mod freeze_authority_sample_embedded {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use admin_authority::AdminCandidate;
 
     fn acct(id_byte: u8, signed: bool) -> AccountWithMetadata {
         AccountWithMetadata {
