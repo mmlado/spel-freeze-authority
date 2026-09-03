@@ -5,9 +5,39 @@ use syn::{
     punctuated::Punctuated,
 };
 
+/// Marker attribute. Framework detects it on a `#[lez_program]` module
+/// and merges the freeze instructions into the dispatcher and IDL.
+///
+/// Attributes expand top to bottom, so if `#[lez_program]` is still
+/// visible on the module when this macro runs, the marker was written
+/// above it. The framework would never see the marker, silently
+/// skipping discovery, so that placement is a hard error.
 #[proc_macro_attribute]
 pub fn freeze_authority(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    if let Ok(module) = syn::parse::<syn::ItemMod>(item.clone())
+        && let Some(err) = misplaced_above_lez_program(&module)
+    {
+        return err.to_compile_error().into();
+    }
     item
+}
+
+/// The marker was written above `#[lez_program]` when that attribute is
+/// still visible on the module the marker expands on.
+fn misplaced_above_lez_program(module: &syn::ItemMod) -> Option<syn::Error> {
+    if module
+        .attrs
+        .iter()
+        .any(|a| a.path().is_ident("lez_program"))
+    {
+        Some(syn::Error::new_spanned(
+            &module.ident,
+            "#[freeze_authority] must come after #[lez_program]: a marker above \
+            it expands first and is invisible to the framework",
+        ))
+    } else {
+        None
+    }
 }
 
 /// Gate: rejects when the program-wide `is_frozen` flag or the caller's
@@ -110,4 +140,51 @@ pub fn instruction(_attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     }
     quote!(#func).into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn marker_above_lez_program_is_rejected() {
+        // #[lez_program] still visible on the module means this marker
+        // expanded first, so it sits above and the framework never sees it.
+        let module: syn::ItemMod = parse_quote! {
+            #[lez_program]
+            mod program {}
+        };
+        let err = misplaced_above_lez_program(&module).expect("must reject");
+        assert!(
+            err.to_string().contains("must come after #[lez_program]"),
+            "unexpected message: {err}"
+        );
+    }
+
+    #[test]
+    fn rejection_names_the_freeze_marker() {
+        // The message has to name this crate's marker, not the admin one
+        // it was mirrored from, or it sends the reader after the wrong
+        // attribute.
+        let module: syn::ItemMod = parse_quote! {
+            #[lez_program]
+            mod program {}
+        };
+        let err = misplaced_above_lez_program(&module).expect("must reject");
+        assert!(
+            err.to_string().starts_with("#[freeze_authority]"),
+            "unexpected message: {err}"
+        );
+    }
+
+    #[test]
+    fn marker_below_lez_program_passes() {
+        // Correct placement: by the time a below-marker could expand,
+        // #[lez_program] has consumed itself and is no longer on the module.
+        let module: syn::ItemMod = parse_quote! {
+            #[doc = "no lez_program attr here"]
+            mod program {}
+        };
+        assert!(misplaced_above_lez_program(&module).is_none());
+    }
 }
