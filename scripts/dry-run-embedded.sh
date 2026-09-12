@@ -21,10 +21,18 @@ NEW_ACCOUNT="$(printf '22%.0s' {1..32})"
 HOLDER="$(printf '33%.0s' {1..32})"
 TARGET="$(printf '44%.0s' {1..32})"
 IDL="$(mktemp --suffix .idl.json)"
-trap 'rm -f "$IDL"' EXIT
+BUILD_LOG="$(mktemp --suffix .build.log)"
+trap 'rm -f "$IDL" "$BUILD_LOG"' EXIT
 
+# The build's stderr stays out of the capture so the byte compare sees
+# only CLI output, but a failed build has to say why before anything
+# else runs against a binary that is not there.
 echo "== Building spel CLI =="
-(cd "$SPEL_REPO" && RISC0_SKIP_BUILD=1 cargo build -q -p spel 2>/dev/null)
+if ! (cd "$SPEL_REPO" && RISC0_SKIP_BUILD=1 cargo build -q -p spel 2>"$BUILD_LOG"); then
+    cat "$BUILD_LOG" >&2
+    echo "spel CLI build failed in $SPEL_REPO" >&2
+    exit 1
+fi
 SPEL_BIN="$SPEL_REPO/target/debug/spel"
 
 echo "== Generating IDL from embedded sample =="
