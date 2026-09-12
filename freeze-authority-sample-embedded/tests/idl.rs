@@ -23,7 +23,7 @@ fn idl_shows_shared_account_surface_without_initializers_or_offsets() {
     // the test matches that.
     let idl = std::thread::Builder::new()
         .stack_size(8 * 1024 * 1024)
-        .spawn(move || generate_idl_from_file_with_deps(&src, &graph.transitive_dirs))
+        .spawn(move || generate_idl_from_file_with_deps(&src, &graph.transitive_dirs, &mut |_| {}))
         .expect("spawns")
         .join()
         .expect("no panic")

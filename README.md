@@ -77,7 +77,7 @@ Instruction data is unchanged by the gates in both modes. The 132 byte data on `
 - [docs/dry-run-output.txt](docs/dry-run-output.txt) is a captured CLI dry-run across the auto-gated consumer instruction and every freeze management instruction. Regenerate with `scripts/dry-run.sh` after any change to the sample or the framework.
 - [docs/dry-run-embedded-output.txt](docs/dry-run-embedded-output.txt) is the same capture for the embedded sample, showing the shared account appearing once per transaction. Regenerate with `scripts/dry-run-embedded.sh`.
 
-The framework-side extension mechanism (discovery, injection, auto-wrap, cross-marker bound args, the shared-account merge) lives on the [spel fork](https://github.com/mmlado/spel)'s main, upstreaming via [logos-co/spel#257](https://github.com/logos-co/spel/pull/257).
+The framework-side extension mechanism (discovery, injection, auto-wrap, cross-marker bound args, the shared-account merge) is upstream in [logos-co/spel](https://github.com/logos-co/spel) since [#257](https://github.com/logos-co/spel/pull/257).
 
 ## Dependencies
 
@@ -85,9 +85,9 @@ The library and admin dependencies pin release tags, the framework pins an exact
 
 | Dep | Repo | Pin |
 | --- | --- | --- |
-| `spel-framework` | [mmlado/spel](https://github.com/mmlado/spel) | rev `f7aa464` (v0.6.0 plus the extension mechanism) |
-| `admin-authority` | [mmlado/spel-admin-authority](https://github.com/mmlado/spel-admin-authority) | tag `v0.1.0` |
-| `authority` (`spel-authority`) | [mmlado/spel-authority](https://github.com/mmlado/spel-authority) | tag `v0.1.0` |
+| `spel-framework` | [logos-co/spel](https://github.com/logos-co/spel) | rev `8183b01` (the #257 merge, v0.6.0 plus the extension mechanism) |
+| `admin-authority` | [mmlado/spel-admin-authority](https://github.com/mmlado/spel-admin-authority) | tag `v0.1.3` |
+| `authority` (`spel-authority`) | [mmlado/spel-authority](https://github.com/mmlado/spel-authority) | tag `v0.1.1` |
 
 Bumping any of these requires updating the pin in all Cargo.toml files that reference the dep (`freeze-authority/`, `freeze-authority-sample/`, `freeze-authority-sample-manual/`, `freeze-authority-sample-embedded/`) plus this table.
 
