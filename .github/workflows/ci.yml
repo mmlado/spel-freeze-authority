@@ -46,16 +46,23 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: dry-run
-      - name: Locate the pinned framework rev
+      # Owner and rev both come from whatever is pinned, so this works
+      # while the pin points at a fork branch under review and still
+      # works once it moves back to an upstream commit.
+      - name: Locate the pinned framework source
         id: rev
         run: |
-          rev=$(grep -rhoP 'github.com/logos-co/spel(\.git)?", (?:branch|rev) = "\K[^"]+' \
+          pin=$(grep -rhoP 'github.com/[^"]+/spel(\.git)?", (?:branch|rev) = "[^"]+' \
             --include=Cargo.toml . | head -1)
+          repo=$(echo "$pin" | grep -oP 'github.com/\K[^"]+?/spel(?=(\.git)?")')
+          rev=$(echo "$pin" | grep -oP '(?:branch|rev) = "\K[^"]+')
+          echo "repo=$repo" >> "$GITHUB_OUTPUT"
           echo "rev=$rev" >> "$GITHUB_OUTPUT"
+          echo "framework pin: $repo @ $rev"
       - name: Check out the framework at the pin
         uses: actions/checkout@v4
         with:
-          repository: logos-co/spel
+          repository: ${{ steps.rev.outputs.repo }}
           ref: ${{ steps.rev.outputs.rev }}
           path: framework-pin
       - name: Prefetch dependency sources (IDL type collection reads git checkouts)

@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "admin-authority"
 version = "0.1.3"
-source = "git+https://github.com/mmlado/spel-admin-authority.git?tag=v0.1.3#11912be2f7da5d5a0b90094dd3aa8d96e3aaf8a6"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=25cdbd9de6f5d27a5665d9ebe29c202da0405fed#25cdbd9de6f5d27a5665d9ebe29c202da0405fed"
 dependencies = [
  "admin-authority-macros",
  "borsh",
@@ -17,7 +17,7 @@ dependencies = [
 [[package]]
 name = "admin-authority-macros"
 version = "0.1.3"
-source = "git+https://github.com/mmlado/spel-admin-authority.git?tag=v0.1.3#11912be2f7da5d5a0b90094dd3aa8d96e3aaf8a6"
+source = "git+https://github.com/mmlado/spel-admin-authority.git?rev=25cdbd9de6f5d27a5665d9ebe29c202da0405fed#25cdbd9de6f5d27a5665d9ebe29c202da0405fed"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -857,6 +857,7 @@ dependencies = [
  "serde",
  "spel-framework",
  "spel-framework-core",
+ "trybuild",
 ]
 
 [[package]]
@@ -940,6 +941,12 @@ dependencies = [
  "r-efi 6.0.0",
  "rand_core 0.10.1",
 ]
+
+[[package]]
+name = "glob"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
 name = "hashbrown"
@@ -1799,6 +1806,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_spanned"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6662b5879511e06e8999a8a235d848113e942c9124f211511b16466ee2995f26"
+dependencies = [
+ "serde_core",
+]
+
+[[package]]
 name = "serde_with"
 version = "3.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1866,7 +1882,7 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 [[package]]
 name = "spel-authority"
 version = "0.1.1"
-source = "git+https://github.com/mmlado/spel-authority.git?tag=v0.1.1#32376c67a26dc442120ea2555ddf48861f52b4de"
+source = "git+https://github.com/mmlado/spel-authority.git?branch=feat%2Fderived_embedding#02e187a9223be3899af0761d92c5d5176281763d"
 dependencies = [
  "borsh",
  "serde",
@@ -1876,7 +1892,7 @@ dependencies = [
 [[package]]
 name = "spel-framework"
 version = "0.6.0"
-source = "git+https://github.com/logos-co/spel.git?rev=8183b011b1a00dbc73ca9209f6b902c622d899af#8183b011b1a00dbc73ca9209f6b902c622d899af"
+source = "git+https://github.com/mmlado/spel.git?rev=3d8307391b86786b7027e1fdd871ae6d37ccf321#3d8307391b86786b7027e1fdd871ae6d37ccf321"
 dependencies = [
  "borsh",
  "lee_core",
@@ -1888,7 +1904,7 @@ dependencies = [
 [[package]]
 name = "spel-framework-core"
 version = "0.6.0"
-source = "git+https://github.com/logos-co/spel.git?rev=8183b011b1a00dbc73ca9209f6b902c622d899af#8183b011b1a00dbc73ca9209f6b902c622d899af"
+source = "git+https://github.com/mmlado/spel.git?rev=3d8307391b86786b7027e1fdd871ae6d37ccf321#3d8307391b86786b7027e1fdd871ae6d37ccf321"
 dependencies = [
  "base58",
  "borsh",
@@ -1899,13 +1915,13 @@ dependencies = [
  "sha2",
  "syn 2.0.119",
  "thiserror 1.0.69",
- "toml",
+ "toml 0.8.23",
 ]
 
 [[package]]
 name = "spel-framework-macros"
 version = "0.6.0"
-source = "git+https://github.com/logos-co/spel.git?rev=8183b011b1a00dbc73ca9209f6b902c622d899af#8183b011b1a00dbc73ca9209f6b902c622d899af"
+source = "git+https://github.com/mmlado/spel.git?rev=3d8307391b86786b7027e1fdd871ae6d37ccf321#3d8307391b86786b7027e1fdd871ae6d37ccf321"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1984,6 +2000,21 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "target-tuple"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "876fef147edbcbddc8ac5cbbba92c7b86519e314e86638596c09673b2ed01e7f"
+
+[[package]]
+name = "termcolor"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
+dependencies = [
+ "winapi-util",
 ]
 
 [[package]]
@@ -2078,9 +2109,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc1beb996b9d83529a9e75c17a1686767d148d70663143c7854d8b4a09ced362"
 dependencies = [
  "serde",
- "serde_spanned",
+ "serde_spanned 0.6.9",
  "toml_datetime 0.6.11",
  "toml_edit 0.22.27",
+]
+
+[[package]]
+name = "toml"
+version = "1.1.6+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "920602543f0911ab71da12c50d59701da54c196d1a2bf5cb4b75667f137a406a"
+dependencies = [
+ "indexmap 2.14.0",
+ "serde_core",
+ "serde_spanned 1.1.1",
+ "toml_datetime 1.1.1+spec-1.1.0",
+ "toml_parser",
+ "toml_writer",
+ "winnow 1.0.4",
 ]
 
 [[package]]
@@ -2109,7 +2155,7 @@ checksum = "41fe8c660ae4257887cf66394862d21dbca4a6ddd26f04a3560410406a2f819a"
 dependencies = [
  "indexmap 2.14.0",
  "serde",
- "serde_spanned",
+ "serde_spanned 0.6.9",
  "toml_datetime 0.6.11",
  "toml_write",
  "winnow 0.7.15",
@@ -2141,6 +2187,12 @@ name = "toml_write"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
+
+[[package]]
+name = "toml_writer"
+version = "1.1.2+spec-1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
 
 [[package]]
 name = "tracing"
@@ -2182,6 +2234,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e0d2eaa99c3c2e41547cfa109e910a68ea03823cccad4a0525dcbc9b01e8c71"
 dependencies = [
  "tracing-core",
+]
+
+[[package]]
+name = "trybuild"
+version = "1.0.121"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0cabaa10be1917331a313866bd94526343e03c77bcf69144b62b072ad35d47c"
+dependencies = [
+ "glob",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "target-tuple",
+ "termcolor",
+ "toml 1.1.6+spec-1.1.0",
 ]
 
 [[package]]
@@ -2281,6 +2348,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "winapi-util"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
+dependencies = [
+ "windows-sys",
+]
+
+[[package]]
 name = "windows-core"
 version = "0.62.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2335,6 +2411,15 @@ name = "windows-strings"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7837d08f69c77cf6b07689544538e017c1bfcf57e34b4c0ff58e6c2cd3b37091"
+dependencies = [
+ "windows-link",
+]
+
+[[package]]
+name = "windows-sys"
+version = "0.61.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc"
 dependencies = [
  "windows-link",
 ]
