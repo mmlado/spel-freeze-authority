@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `#[instruction]` is re-exported from `spel-framework` rather than shipped as a shim in `freeze-authority-macros`. The framework's own `#[instruction]` strips the `#[account(...)]` helper attrs when it expands outside `#[lez_program]`, so the hand-written copy had nothing left to do (logos-co/spel#271).
+
 ## [0.1.4] - 2026-09-12
 
 ### Changed

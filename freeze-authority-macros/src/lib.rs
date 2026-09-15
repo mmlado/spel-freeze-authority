@@ -1,8 +1,7 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
-    Expr, FnArg, ItemFn, MetaNameValue, Token, parse_macro_input, parse_quote,
-    punctuated::Punctuated,
+    Expr, ItemFn, MetaNameValue, Token, parse_macro_input, parse_quote, punctuated::Punctuated,
 };
 
 /// Marker attribute. Framework detects it on a `#[lez_program]` module
@@ -125,21 +124,6 @@ pub fn require_not_frozen(attr: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn freeze_exempt(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
-}
-
-/// No-op `#[instruction]` for path-dep-scanned freeze-authority fns. Strips
-/// `#[account(...)]` helper attrs from params so rustc accepts the
-/// freeze-authority crate compile. The path-dep scanner reads raw source
-/// via `syn::parse_file` and sees the `#[account(...)]` attrs intact.
-#[proc_macro_attribute]
-pub fn instruction(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let mut func = parse_macro_input!(item as ItemFn);
-    for arg in &mut func.sig.inputs {
-        if let FnArg::Typed(pt) = arg {
-            pt.attrs.retain(|a| !a.path().is_ident("account"));
-        }
-    }
-    quote!(#func).into()
 }
 
 #[cfg(test)]
