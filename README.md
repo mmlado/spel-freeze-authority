@@ -85,9 +85,9 @@ The library and admin dependencies pin release tags, the framework pins an exact
 
 | Dep | Repo | Pin |
 | --- | --- | --- |
-| `spel-framework` | [logos-co/spel](https://github.com/logos-co/spel) | rev `8183b01` (the #257 merge, v0.6.0 plus the extension mechanism) |
-| `admin-authority` | [mmlado/spel-admin-authority](https://github.com/mmlado/spel-admin-authority) | tag `v0.1.3` |
-| `authority` (`spel-authority`) | [mmlado/spel-authority](https://github.com/mmlado/spel-authority) | tag `v0.1.1` |
+| `spel-framework` | [logos-co/spel](https://github.com/logos-co/spel) | rev `d0bb659` (the #276 merge, the standalone `#[instruction]` fix) |
+| `admin-authority` | [mmlado/spel-admin-authority](https://github.com/mmlado/spel-admin-authority) | tag `v0.1.4` |
+| `authority` (`spel-authority`) | [mmlado/spel-authority](https://github.com/mmlado/spel-authority) | tag `v0.1.2` |
 
 Bumping any of these requires updating the pin in all Cargo.toml files that reference the dep (`freeze-authority/`, `freeze-authority-sample/`, `freeze-authority-sample-manual/`, `freeze-authority-sample-embedded/`) plus this table.
 
