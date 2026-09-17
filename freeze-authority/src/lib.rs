@@ -15,9 +15,8 @@
 use admin_authority::{AdminConfig, require_admin};
 use spel_framework::prelude::*;
 
-pub use freeze_authority_macros::{
-    freeze_authority, freeze_exempt, instruction, require_not_frozen,
-};
+pub use freeze_authority_macros::{freeze_authority, freeze_exempt, require_not_frozen};
+pub use spel_framework::instruction;
 
 extern crate self as freeze_authority;
 
