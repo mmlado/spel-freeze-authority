@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-09-17
+
 ### Changed
 
 - `#[instruction]` is re-exported from `spel-framework` rather than shipped as a shim in `freeze-authority-macros`. The framework's own `#[instruction]` strips the `#[account(...)]` helper attrs when it expands outside `#[lez_program]`, so the hand-written copy had nothing left to do (logos-co/spel#271).
+- Pin `spel-framework` to `logos-co/spel` at d0bb659, the commit that
+  merged that fix.
+- Pin `admin-authority` by its `v0.1.4` tag and `spel-authority` by its
+  `v0.1.2` tag, the same framework pin in all three.
 
 ## [0.1.4] - 2026-09-12
 
@@ -77,7 +83,8 @@ First release.
 - Docs packet: CONTEXT.md vocabulary, account model, authority
   lifecycle, and ADRs.
 
-[Unreleased]: https://github.com/mmlado/spel-freeze-authority/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/mmlado/spel-freeze-authority/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/mmlado/spel-freeze-authority/releases/tag/v0.1.5
 [0.1.4]: https://github.com/mmlado/spel-freeze-authority/releases/tag/v0.1.4
 [0.1.3]: https://github.com/mmlado/spel-freeze-authority/releases/tag/v0.1.3
 [0.1.2]: https://github.com/mmlado/spel-freeze-authority/releases/tag/v0.1.2
