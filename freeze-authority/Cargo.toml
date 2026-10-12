@@ -21,6 +21,8 @@ self_exempt_marker = "freeze_exempt"
 exempt = [
   "admin_authority::admin_initialize",
   "admin_authority::admin_transfer",
+  "admin_authority::admin_nominate",
+  "admin_authority::admin_accept",
   "admin_authority::admin_renounce",
 ]
 

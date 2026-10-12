@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `freeze_authority_nominate` and `freeze_authority_accept` instructions.
+- `FreezeConfig::nominate`, `accept`, `nominee`, `perform_nominate_at` and `perform_accept_at`.
+- `FreezeError::NoNomination`, `NotNominee` and `UnownedSigner`.
+- `admin_nominate` and `admin_accept` on the auto-wrap exempt list.
+
+### Changed
+
+- Breaking: `FreezeConfig` encodes as 65 bytes, holder at `0..32`, nominee at `32..64`, `is_frozen` at byte 64.
+- Embedded sample: admin at `32..96`, freeze at `96..161`, marker `offset = 96`.
+- `freeze_authority_transfer` and `freeze_authority_renounce` clear the nominee.
+- Breaking: `freeze_authority_transfer` and `freeze_authority_accept` refuse a key no program owns.
+- Requires the matching `spel-authority` and `admin-authority` releases.
+
 ## [0.1.5] - 2026-09-17
 
 ### Changed

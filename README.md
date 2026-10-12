@@ -10,7 +10,7 @@ A SPEL library that adds a freeze pattern to LEZ programs: a program-wide frozen
 
 ## What it does
 
-Add `#[freeze_authority]` to a `#[lez_program]` module and the library contributes seven management instructions to the program and gates every other dispatched instruction with a freeze check. The bare attribute is auto mode. `#[freeze_authority(manual)]` disables the automatic gating so the consumer annotates individual instructions with `#[require_not_frozen]` instead. `#[freeze_exempt]` opts a single instruction out of auto mode. One exemption is automatic: in embedded mode the instruction that creates the embedding account with `#[account(init)]` is never auto-gated, an account cannot pass a freeze check before it exists. Manual mode is unchanged, an authored `#[require_not_frozen]` stays where the author put it.
+Add `#[freeze_authority]` to a `#[lez_program]` module and the library contributes nine management instructions to the program and gates every other dispatched instruction with a freeze check. The bare attribute is auto mode. `#[freeze_authority(manual)]` disables the automatic gating so the consumer annotates individual instructions with `#[require_not_frozen]` instead. `#[freeze_exempt]` opts a single instruction out of auto mode. One exemption is automatic: in embedded mode the instruction that creates the embedding account with `#[account(init)]` is never auto-gated, an account cannot pass a freeze check before it exists. Manual mode is unchanged, an authored `#[require_not_frozen]` stays where the author put it.
 
 Consumers can name their own params freely. A gated instruction with `#[account(signer)] owner`, `#[account(pda = literal("freeze_config"))] my_cfg`, and `#[account(pda = [literal("frozen"), account("owner")])] my_frozen` reuses all three instead of getting duplicates injected — the framework detects each by role (signer, single-literal PDA, compound-seed PDA) and skips the redundant inject. See [ADR-0010](docs/adr/0010-wrapper-args-are-inject-account-names.md).
 
@@ -38,6 +38,22 @@ spel submit handover.json
 
 `--co-signer` and `--export` are global flags and go before the `--` separator. The CLI rejects them after it. The [witness exchange section](https://github.com/logos-co/spel#multi-signature-transactions-witness-exchange) of the SPEL README describes the file format.
 
+## Two-step handover
+
+`freeze_authority_nominate` and `freeze_authority_accept` move the freeze authority in two transactions, each with one signer. The current freeze authority or the admin names the nominee, and the nominee takes the role by signing for itself:
+
+```bash
+# Current freeze authority or admin: name the nominee (64 hex characters, the account id's bytes).
+spel --idl program-idl.json -p program.bin -- \
+  freeze-authority-nominate --caller <holder-or-admin> --new-freeze-authority <nominee-account-id-hex>
+
+# Nominee, whenever it is ready: take the role.
+spel --idl program-idl.json -p program.bin -- \
+  freeze-authority-accept --caller <nominee>
+```
+
+Nothing moves until the nominee accepts, so a mistyped id only costs a second nomination. A later nomination replaces an earlier one from either side, the all-zero id cancels, and `freeze_authority_transfer` and `freeze_authority_renounce` both clear a pending nominee. With the slot vacant only the admin can nominate. A PDA nominee accepts through its owning program, which chained-calls `freeze_authority_accept` with the PDA's seeds. Keys must be owned by some program (`wallet auth-transfer init`), otherwise the library refuses them with `FreezeError::UnownedSigner`.
+
 ## Embedded mode
 
 Declared program-wide on the marker, in lockstep with admin-authority's embedded mode:
@@ -48,14 +64,14 @@ pub struct ProgramConfig {
     pub value: u64,            // bytes 0..8
     pub padding: [u8; 24],     // bytes 8..32
     #[admin_slot]
-    pub admin: AdminConfig,    // bytes 32..64
+    pub admin: AdminConfig,    // bytes 32..96
     #[freeze_slot]
-    pub freeze: FreezeConfig,  // bytes 64..97
+    pub freeze: FreezeConfig,  // bytes 96..161
 }
 
 #[lez_program]
 #[admin_authority(admin_config = config, offset = 32)]
-#[freeze_authority(freeze_config = config, offset = 64)]
+#[freeze_authority(freeze_config = config, offset = 96)]
 mod my_program { ... }
 ```
 
@@ -74,9 +90,9 @@ Design records: [ADR-0011](docs/adr/0011-embedded-freeze-config.md) (embedded fr
 
 Measured from the committed dry-run captures ([docs/dry-run-output.txt](docs/dry-run-output.txt), [docs/dry-run-embedded-output.txt](docs/dry-run-embedded-output.txt)).
 
-Dedicated mode: the auto-wrap gate adds two accounts to a gated transaction, the `freeze_config` PDA (32 byte id in the message, 33 byte pre-state in the witness) and the caller's per-account `freeze_account` PDA (32 byte id, 1 byte pre-state once created). In the captures the gated `update_value` carries 4 accounts while the exempt `read_value` carries 1.
+Dedicated mode: the auto-wrap gate adds two accounts to a gated transaction, the `freeze_config` PDA (32 byte id in the message, 65 byte pre-state in the witness) and the caller's per-account `freeze_account` PDA (32 byte id, 1 byte pre-state once created). In the captures the gated `update_value` carries 4 accounts while the exempt `read_value` carries 1.
 
-Embedded mode: `freeze_config` rides inside the consumer's own account, so the gate adds one account (`freeze_account`) and the freeze state adds 33 bytes to the embedding account's data. Management instructions that read admin state also drop the dedicated `admin_config` account when admin embeds in the same account: `freeze_authority_renounce` carries 3 accounts in dedicated mode and 2 in embedded mode.
+Embedded mode: `freeze_config` rides inside the consumer's own account, so the gate adds one account (`freeze_account`) and the freeze state adds 65 bytes to the embedding account's data. Management instructions that read admin state also drop the dedicated `admin_config` account when admin embeds in the same account: `freeze_authority_renounce` carries 3 accounts in dedicated mode and 2 in embedded mode.
 
 Instruction data is unchanged by the gates in both modes. The 132 byte data on `freeze_account` and `freeze_account_release` is the `target` argument encoding (risc0 serde encodes `[u8; 32]` as 32 words), unrelated to the gate.
 
@@ -113,7 +129,7 @@ Bumping any of these requires updating the pin in all Cargo.toml files that refe
 
 ## Versioning and stability
 
-Semantic versioning covers five surfaces: the public Rust API, the attribute names (`#[freeze_authority]`, `#[freeze_initialize]`, `#[freeze_slot]`, `#[require_not_frozen]`, `#[freeze_exempt]`) with their argument grammar, the `[package.metadata.spel]` contract this crate declares including the wrap and bound-arg entries, `FreezeConfig`'s 33-byte borsh encoding, an on-chain wire format, and the cross-marker offset contract peers read admin state through. While the version is 0.x, a minor bump may change any of them, and each such change is called out in the changelog.
+Semantic versioning covers five surfaces: the public Rust API, the attribute names (`#[freeze_authority]`, `#[freeze_initialize]`, `#[freeze_slot]`, `#[require_not_frozen]`, `#[freeze_exempt]`) with their argument grammar, the `[package.metadata.spel]` contract this crate declares including the wrap and bound-arg entries, `FreezeConfig`'s 65-byte borsh encoding (holder, nominee, frozen flag), an on-chain wire format, and the cross-marker offset contract peers read admin state through. While the version is 0.x, a minor bump may change any of them, and each such change is called out in the changelog.
 
 The `spel-framework` dependency pins a fork revision for now. Version 1.0.0 lands when the extension mechanism reaches an upstream release ([logos-co/spel#257](https://github.com/logos-co/spel/pull/257)) and the pin moves to it.
 

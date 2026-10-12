@@ -21,7 +21,7 @@ The freeze authority `AccountId` lives inside `slot.holder()`, not as a direct f
 
 **PDA derivation:** `(program_id, "freeze_config")`. Single-seed PDA. Address is deterministic per program. Reinit rejected after first `freeze_initialize` call per LEZ's `validate_execution` rule.
 
-**Encoding:** fixed 33 bytes — `AuthoritySlot` borsh-encodes to a single 32-byte `AccountId` (its only field), followed by the 1-byte bool. Borsh layout is direct: no length prefix, no discriminator, no padding. The composition is zero-cost on the wire; on-chain data shape matches a hand-rolled `{ AccountId, bool }` byte-for-byte.
+**Encoding:** fixed 65 bytes. `AuthoritySlot` borsh-encodes to two 32-byte `AccountId`s, the holder then the nominee (all zeros when there is none, spel-authority ADR-0002), followed by the 1-byte bool. Borsh layout is direct: no length prefix, no discriminator, no padding. The composition is zero-cost on the wire; on-chain data shape matches a hand-rolled `{ AccountId, AccountId, bool }` byte-for-byte.
 
 **Sentinel for renounced:** `slot.is_renounced()` returns `true` when `slot.holder() == AccountId::default()`. Pattern-aligned with `admin-authority`'s `AdminConfig`, which uses the same slot primitive. Per ADR-0007, Renounced is recoverable by admin via `freeze_authority_transfer`.
 
@@ -85,7 +85,7 @@ Distinct variants for gate rejection (`Frozen` / `AccountFrozen`) versus managem
 
 | Type                 | Size    | Layout                  |
 | -------------------- | ------- | ----------------------- |
-| `FreezeConfig`       | 33 B    | `[AccountId; 32] ++ u8` |
+| `FreezeConfig`       | 65 B    | `[AccountId; 32] ++ [AccountId; 32] ++ u8` |
 | `FrozenAccountState` | 1 B     | `u8`                    |
 
 No version byte. No length prefix. Borsh's `try_from_slice` (which `FreezeConfig::decode` uses) rejects trailing bytes on strict decode, so a naive field-append v2 is a wire-breaking change. Version bytes are deferred to a v2 revision if the account model ever needs to evolve.

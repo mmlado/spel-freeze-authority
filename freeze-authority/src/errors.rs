@@ -61,6 +61,10 @@ pub enum FreezeError {
     /// strand it after one transaction. Run `wallet auth-transfer init` on
     /// the key first.
     UnownedSigner,
+    /// `freeze_authority_accept` was called with no nominee.
+    NoNomination,
+    /// The signer of `freeze_authority_accept` is not the nominee.
+    NotNominee,
 }
 
 impl core::fmt::Display for FreezeError {
@@ -93,6 +97,8 @@ impl core::fmt::Display for FreezeError {
             }
             FreezeError::SlotOutOfBounds => write!(f, "embedded slot window out of bounds"),
             FreezeError::UnownedSigner => write!(f, "freeze authority key is owned by no program"),
+            FreezeError::NoNomination => write!(f, "no freeze authority nominee to accept"),
+            FreezeError::NotNominee => write!(f, "signer is not the freeze authority nominee"),
         }
     }
 }
@@ -116,6 +122,8 @@ impl From<AuthorityError> for FreezeError {
             AuthorityError::MissingSignature => FreezeError::MissingSignature,
             AuthorityError::SlotOutOfBounds => FreezeError::SlotOutOfBounds,
             AuthorityError::UnownedSigner => FreezeError::UnownedSigner,
+            AuthorityError::NoNomination => FreezeError::NoNomination,
+            AuthorityError::NotNominee => FreezeError::NotNominee,
         }
     }
 }
@@ -135,6 +143,8 @@ impl From<AdminError> for FreezeError {
             AdminError::AccountDataTooLarge => FreezeError::AccountDataTooLarge,
             AdminError::SlotOutOfBounds => FreezeError::SlotOutOfBounds,
             AdminError::UnownedSigner => FreezeError::UnownedSigner,
+            AdminError::NoNomination => FreezeError::NoNomination,
+            AdminError::NotNominee => FreezeError::NotNominee,
         }
     }
 }
