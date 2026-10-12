@@ -18,6 +18,26 @@ The freeze authority lifecycle is governed by the admin from [spel-admin-authori
 
 Since M2.5 the freeze state can live inside one of the consumer's own accounts instead of a dedicated PDA, sharing that account with the consumer's state and the admin slot. See the embedded mode section below.
 
+## Transferring to a keyholder
+
+`freeze_authority_transfer` to a `Signer` candidate is a multi-signature transaction. The admin signs as `caller` and the new freeze authority signs to accept, both on the same message. The `spel` CLI collects the second signature through a partial-transaction file:
+
+```bash
+# Admin: build and sign, write the transaction to a file instead of submitting it.
+spel --idl program-idl.json --program <program-id> \
+  --co-signer <new-freeze-authority-account-id> --export handover.json -- \
+  freeze-authority-transfer --caller <admin-account-id> \
+  --new-account <new-freeze-authority-account-id> --candidate Signer
+
+# New freeze authority, on their own machine: inspect and sign. Works offline.
+spel sign handover.json
+
+# Anyone with a node connection: submit once both signatures are in.
+spel submit handover.json
+```
+
+`--co-signer` and `--export` are global flags and go before the `--` separator. The CLI rejects them after it. The [witness exchange section](https://github.com/logos-co/spel#multi-signature-transactions-witness-exchange) of the SPEL README describes the file format.
+
 ## Embedded mode
 
 Declared program-wide on the marker, in lockstep with admin-authority's embedded mode:
