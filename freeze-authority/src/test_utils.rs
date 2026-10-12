@@ -6,9 +6,14 @@ use spel_framework::prelude::*;
 
 use crate::{FreezeConfig, FrozenAccountState};
 
+// A signing key is owned by some program, as `wallet auth-transfer init` leaves it.
 pub(crate) fn acct(id_byte: u8, signed: bool) -> AccountWithMetadata {
+    let program_owner = if signed { [5; 8] } else { [0; 8] };
     AccountWithMetadata {
-        account: Account::default(),
+        account: Account {
+            program_owner,
+            ..Account::default()
+        },
         is_authorized: signed,
         account_id: AccountId::new([id_byte; 32]),
     }

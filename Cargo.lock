@@ -818,6 +818,7 @@ dependencies = [
  "admin-authority",
  "borsh",
  "freeze-authority-macros",
+ "lee_core",
  "serde",
  "spel-authority",
  "spel-framework",

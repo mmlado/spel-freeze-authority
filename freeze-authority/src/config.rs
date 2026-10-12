@@ -617,11 +617,8 @@ mod tests {
 
     #[test]
     fn bootstrap_rejects_default_account_id() {
-        let default_signer = AccountWithMetadata {
-            account: Account::default(),
-            is_authorized: true,
-            account_id: AccountId::default(),
-        };
+        let mut default_signer = acct(0, true);
+        default_signer.account_id = AccountId::default();
         let mut config_account = AccountWithMetadata {
             account: Account::default(),
             is_authorized: false,

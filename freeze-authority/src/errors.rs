@@ -57,6 +57,10 @@ pub enum FreezeError {
     /// the account's data. Layout error: the declared offset and the
     /// account's actual size disagree.
     SlotOutOfBounds,
+    /// A `Signer` transfer target is owned by no program. LEZ would
+    /// strand it after one transaction. Run `wallet auth-transfer init` on
+    /// the key first.
+    UnownedSigner,
 }
 
 impl core::fmt::Display for FreezeError {
@@ -88,6 +92,7 @@ impl core::fmt::Display for FreezeError {
                 write!(f, "FreezeConfig too large for account data")
             }
             FreezeError::SlotOutOfBounds => write!(f, "embedded slot window out of bounds"),
+            FreezeError::UnownedSigner => write!(f, "freeze authority key is owned by no program"),
         }
     }
 }
@@ -110,6 +115,7 @@ impl From<AuthorityError> for FreezeError {
             AuthorityError::Renounced => FreezeError::Renounced,
             AuthorityError::MissingSignature => FreezeError::MissingSignature,
             AuthorityError::SlotOutOfBounds => FreezeError::SlotOutOfBounds,
+            AuthorityError::UnownedSigner => FreezeError::UnownedSigner,
         }
     }
 }
@@ -128,6 +134,7 @@ impl From<AdminError> for FreezeError {
             AdminError::DecodingFailed => FreezeError::DecodingFailed,
             AdminError::AccountDataTooLarge => FreezeError::AccountDataTooLarge,
             AdminError::SlotOutOfBounds => FreezeError::SlotOutOfBounds,
+            AdminError::UnownedSigner => FreezeError::UnownedSigner,
         }
     }
 }
