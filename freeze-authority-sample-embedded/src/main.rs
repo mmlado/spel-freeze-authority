@@ -4,7 +4,7 @@ use freeze_authority::{FreezeCandidate, FreezeConfig, freeze_exempt};
 use spel_framework::prelude::*;
 
 /// Both authority slots live inside this account: value 0..8,
-/// padding 8..32, admin 32..64, freeze 64..97. Two extensions, one
+/// padding 8..32, admin 32..96, freeze 96..161. Two extensions, one
 /// consumer account, distinct windows.
 #[account_type]
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Default)]
@@ -39,7 +39,7 @@ impl ProgramConfig {
 
 #[lez_program]
 #[admin_authority(admin_config = config, offset = 32)]
-#[freeze_authority(freeze_config = config, offset = 64)]
+#[freeze_authority(freeze_config = config, offset = 96)]
 mod freeze_authority_sample_embedded {
     use admin_authority::require_admin;
 
@@ -104,16 +104,21 @@ mod tests {
     use super::*;
     use admin_authority::AdminCandidate;
 
+    // A signing key is owned by some program, as `wallet auth-transfer init` leaves it.
     fn acct(id_byte: u8, signed: bool) -> AccountWithMetadata {
+        let program_owner = if signed { [5; 8] } else { [0; 8] };
         AccountWithMetadata {
-            account: Account::default(),
+            account: Account {
+                program_owner,
+                ..Account::default()
+            },
             is_authorized: signed,
             account_id: AccountId::new([id_byte; 32]),
         }
     }
 
     /// The consumer's initialize, distilled: struct written whole, admin
-    /// bootstrapped at 32, freeze slot left born vacant at 64.
+    /// bootstrapped at 32, freeze slot left born vacant at 96.
     fn shared_account(admin_signer: &AccountWithMetadata) -> AccountWithMetadata {
         let mut config_account = acct(9, false);
         ProgramConfig {
@@ -126,7 +131,7 @@ mod tests {
         .expect("initial write");
         AdminConfig::bootstrap_at(
             &mut config_account,
-            32,
+            ProgramConfig::ADMIN_SLOT_OFFSET,
             AdminCandidate::Signer,
             admin_signer,
         )
@@ -145,14 +150,14 @@ mod tests {
 
         FreezeConfig::perform_transfer_at(
             &mut config_account,
-            64,
+            ProgramConfig::FREEZE_SLOT_OFFSET,
             FreezeCandidate::Signer,
             &holder,
         )
         .expect("appoint holder");
         AdminConfig::perform_transfer_at(
             &mut config_account,
-            32,
+            ProgramConfig::ADMIN_SLOT_OFFSET,
             &admin,
             AdminCandidate::Signer,
             &new_admin,
@@ -169,7 +174,7 @@ mod tests {
         );
     }
 
-    // Toggling the freeze flag must not touch the admin window at 32..64.
+    // Toggling the freeze flag must not touch the admin window at 32..96.
     #[test]
     fn freeze_toggle_preserves_admin_window() {
         let admin = acct(1, true);
@@ -177,12 +182,17 @@ mod tests {
         let mut config_account = shared_account(&admin);
         FreezeConfig::perform_transfer_at(
             &mut config_account,
-            64,
+            ProgramConfig::FREEZE_SLOT_OFFSET,
             FreezeCandidate::Signer,
             &holder,
         )
         .expect("appoint");
-        FreezeConfig::perform_freeze_at(&mut config_account, 64, &holder).expect("freeze");
+        FreezeConfig::perform_freeze_at(
+            &mut config_account,
+            ProgramConfig::FREEZE_SLOT_OFFSET,
+            &holder,
+        )
+        .expect("freeze");
 
         let state = ProgramConfig::from_account(&config_account).expect("decode");
         assert!(state.freeze.is_frozen);
@@ -202,7 +212,9 @@ mod tests {
         let anyone = acct(4, true);
         let mut config_account = shared_account(&admin);
 
-        let freeze = FreezeConfig::from_account_at(&config_account, 64).expect("decode");
+        let freeze =
+            FreezeConfig::from_account_at(&config_account, ProgramConfig::FREEZE_SLOT_OFFSET)
+                .expect("decode");
         assert!(
             freeze.assert(&anyone).is_err(),
             "born vacant slot must reject"
@@ -210,12 +222,14 @@ mod tests {
 
         FreezeConfig::perform_transfer_at(
             &mut config_account,
-            64,
+            ProgramConfig::FREEZE_SLOT_OFFSET,
             FreezeCandidate::Signer,
             &anyone,
         )
         .expect("admin appoints");
-        let freeze = FreezeConfig::from_account_at(&config_account, 64).expect("decode");
+        let freeze =
+            FreezeConfig::from_account_at(&config_account, ProgramConfig::FREEZE_SLOT_OFFSET)
+                .expect("decode");
         assert!(freeze.assert(&anyone).is_ok());
     }
 
@@ -229,7 +243,7 @@ mod tests {
         let mut config_account = shared_account(&admin);
         FreezeConfig::perform_transfer_at(
             &mut config_account,
-            64,
+            ProgramConfig::FREEZE_SLOT_OFFSET,
             FreezeCandidate::Signer,
             &holder,
         )
@@ -239,8 +253,8 @@ mod tests {
             config_account.clone(),
             config_account,
             holder,
-            64,
-            32,
+            ProgramConfig::FREEZE_SLOT_OFFSET,
+            ProgramConfig::ADMIN_SLOT_OFFSET,
         )
         .expect("renounce");
         assert_eq!(

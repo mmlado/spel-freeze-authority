@@ -17,7 +17,10 @@ fn initialize_succeeds_on_a_fresh_account() {
         account_id: AccountId::new([1; 32]),
     };
     let signer = AccountWithMetadata {
-        account: Account::default(),
+        account: Account {
+            program_owner: [5; 8],
+            ..Account::default()
+        },
         is_authorized: true,
         account_id: AccountId::new([2; 32]),
     };

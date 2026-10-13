@@ -39,12 +39,16 @@ fn idl_shows_shared_account_surface_without_initializers_or_offsets() {
             "withdraw",
             "admin_transfer",
             "admin_renounce",
+            "admin_nominate",
+            "admin_accept",
             "freeze_authority_transfer",
             "freeze_authority_renounce",
             "freeze_program",
             "freeze_program_release",
             "freeze_account",
             "freeze_account_release",
+            "freeze_authority_nominate",
+            "freeze_authority_accept",
         ],
         "embedded surface drifted"
     );

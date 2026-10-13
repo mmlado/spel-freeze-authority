@@ -44,26 +44,21 @@ run() {
     "$SPEL_BIN" --idl "$IDL" --program "$PROG_ID" --dry-run -- "$@" 2>&1
 }
 
-# Auto-gated consumer instruction: framework injects freeze_config,
-# freeze_account, and caller alongside the source-declared `config`.
-# Reviewer point 2a. Confirms IDL resolution sees every gate account.
+# The framework injects the gate accounts next to the declared `config`.
 run update-value --caller "$CALLER" --new-value 42
 
-# Freeze-exempt consumer instruction: no gate accounts, escape-hatch read.
+# Freeze-exempt, so no gate accounts.
 run read-value
 
-# Admin-gated freeze management instructions.
 run freeze-initialize --caller "$CALLER"
 run freeze-program --caller "$CALLER"
 run freeze-program-release --caller "$CALLER"
 
-# Signer candidate: hand freeze authority off to a new signer.
 run freeze-authority-transfer \
     --caller "$CALLER" \
     --new-account "$NEW_AUTH" \
     --candidate Signer
 
-# Pda candidate: hand freeze authority to a program-derived address.
 PDA_PROGRAM="$(printf 'cd%.0s' {1..32})"
 PDA_SEED="$(printf 'ef%.0s' {1..32})"
 run freeze-authority-transfer \
@@ -71,12 +66,11 @@ run freeze-authority-transfer \
     --new-account "$NEW_AUTH" \
     --candidate "{\"Pda\": {\"program_id\": \"$PDA_PROGRAM\", \"seed\": \"$PDA_SEED\"}}"
 
-# Dual-path renounce (admin OR current holder per ADR-0004).
 run freeze-authority-renounce --caller "$CALLER"
-
-# Per-account freeze operations, target passed as an argument.
 run freeze-account --caller "$CALLER" --target "$TARGET"
 run freeze-account-release --caller "$CALLER" --target "$TARGET"
+run freeze-authority-nominate --caller "$CALLER" --new-freeze-authority "$NEW_AUTH"
+run freeze-authority-accept --caller "$NEW_AUTH"
 
 echo
 echo "Done."

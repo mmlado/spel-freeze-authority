@@ -49,7 +49,7 @@ jobs:
       - name: Locate the pinned framework rev
         id: rev
         run: |
-          rev=$(grep -rhoP 'github.com/logos-co/spel(\.git)?", (?:branch|rev) = "\K[^"]+' \
+          rev=$(grep -rhoP 'github.com/logos-co/spel(\.git)?", (?:branch|rev|tag) = "\K[^"]+' \
             --include=Cargo.toml . | head -1)
           echo "rev=$rev" >> "$GITHUB_OUTPUT"
       - name: Check out the framework at the pin

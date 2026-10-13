@@ -23,8 +23,9 @@ pub type FreezeCandidate = AuthorityCandidate;
 /// On-chain freeze authority state for a single program.
 ///
 /// Stored in the program's Config PDA at `(program_id, "freeze_config")`.
-/// Composes the shared `authority::AuthoritySlot` (holds the freeze authority
-/// `AccountId`) with the program-wide `is_frozen` flag. `slot.is_renounced()`
+/// Composes the shared `authority::AuthoritySlot` (the freeze authority and
+/// its nominee, 64 bytes) with the program-wide `is_frozen` flag, 65 bytes
+/// in all. `slot.is_renounced()`
 /// returns true when the holder is `AccountId::default()`; per ADR-0007 the
 /// Renounced state is recoverable by admin via `freeze_authority_transfer`.
 #[account_type]
@@ -92,7 +93,7 @@ impl FreezeConfig {
             return Err(FreezeError::NotInitialized);
         }
         let slot = AuthoritySlot::read_at(data, offset)?;
-        let is_frozen = match data.get(offset + 32) {
+        let is_frozen = match data.get(offset + AuthoritySlot::ENCODED_LEN) {
             Some(&0) => false,
             Some(&1) => true,
             Some(_) => return Err(FreezeError::DecodingFailed),
@@ -105,6 +106,34 @@ impl FreezeConfig {
     /// [`FreezeConfig::decode`].
     pub fn from_account(account: &AccountWithMetadata) -> Result<Self, FreezeError> {
         Self::decode(&account.account.data)
+    }
+
+    /// Loads config from an account the calling program owns. For readers
+    /// whose account is not already pinned to the program by a PDA
+    /// constraint.
+    ///
+    /// Returns `FreezeError::ConfigNotOwned` when `program_id` does not own
+    /// the account, before anything is decoded.
+    pub fn from_owned_account(
+        account: &AccountWithMetadata,
+        program_id: ProgramId,
+    ) -> Result<Self, FreezeError> {
+        if account.account.program_owner != program_id {
+            return Err(FreezeError::ConfigNotOwned);
+        }
+        Self::from_account(account)
+    }
+
+    /// [`FreezeConfig::from_owned_account`] for the window at `offset`.
+    pub fn from_owned_account_at(
+        account: &AccountWithMetadata,
+        offset: usize,
+        program_id: ProgramId,
+    ) -> Result<Self, FreezeError> {
+        if account.account.program_owner != program_id {
+            return Err(FreezeError::ConfigNotOwned);
+        }
+        Self::from_account_at(account, offset)
     }
 
     /// Loads the config from an account's data at `offset`. Convenience
@@ -158,7 +187,7 @@ impl FreezeConfig {
         let mut bytes: Vec<u8> = account.account.data.to_vec();
         self.slot.write_at(&mut bytes, offset)?;
         *bytes
-            .get_mut(offset + 32)
+            .get_mut(offset + AuthoritySlot::ENCODED_LEN)
             .ok_or(FreezeError::SlotOutOfBounds)? = self.is_frozen as u8;
         account.account.data = bytes
             .try_into()
@@ -240,6 +269,63 @@ impl FreezeConfig {
 
         self.slot.renounce();
         Ok(())
+    }
+
+    /// Names `next` as the nominee, replacing any earlier one. The holder
+    /// does not change until the nominee calls [`Self::accept`]. The
+    /// all-zero id cancels.
+    ///
+    /// Dual-path auth like [`Self::renounce`] (ADR-0013): the current
+    /// holder or the admin may nominate. With the slot vacant only the
+    /// admin arm can pass.
+    pub fn nominate(
+        &mut self,
+        admin_config: Option<&AdminConfig>,
+        current: &AccountWithMetadata,
+        next: AccountId,
+    ) -> Result<(), FreezeError> {
+        let admin_ok = admin_config.is_some_and(|a| a.assert_admin(current).is_ok());
+        if !admin_ok && self.slot.assert(current).is_err() {
+            return Err(FreezeError::NotAdminOrFreezeAuthority);
+        }
+        self.slot.nominate(next);
+        Ok(())
+    }
+
+    /// Installs the nominee as freeze authority on the nominee's own
+    /// signature. A PDA nominee signs through a chained call from its
+    /// owning program. Fills a vacant slot too (ADR-0007).
+    pub fn accept(&mut self, nominee: &AccountWithMetadata) -> Result<(), FreezeError> {
+        self.slot.accept(nominee).map_err(FreezeError::from)
+    }
+
+    /// The nominee waiting to accept, if any.
+    pub fn nominee(&self) -> Option<AccountId> {
+        self.slot.pending()
+    }
+
+    /// Loads config from account at `offset`, nominates `next`, writes back.
+    pub fn perform_nominate_at(
+        admin_config: Option<&AdminConfig>,
+        config_account: &mut AccountWithMetadata,
+        offset: usize,
+        current: &AccountWithMetadata,
+        next: AccountId,
+    ) -> Result<(), FreezeError> {
+        let mut state = Self::from_account_at(config_account, offset)?;
+        state.nominate(admin_config, current, next)?;
+        state.write_to_at(config_account, offset)
+    }
+
+    /// Loads config from account at `offset`, lets the nominee accept, writes back.
+    pub fn perform_accept_at(
+        config_account: &mut AccountWithMetadata,
+        offset: usize,
+        nominee: &AccountWithMetadata,
+    ) -> Result<(), FreezeError> {
+        let mut state = Self::from_account_at(config_account, offset)?;
+        state.accept(nominee)?;
+        state.write_to_at(config_account, offset)
     }
 
     /// Loads config from account, installs the validated candidate, writes back.
@@ -339,13 +425,15 @@ impl FreezeConfig {
 }
 
 impl spel_framework::FixedBorshSize for FreezeConfig {
-    const SIZE: usize = 33;
+    const SIZE: usize = 65;
 }
 
 impl spel_framework::SlotLayoutProbe for FreezeConfig {
     fn probe() -> Self {
         let mut cfg = FreezeConfig::initialize(AccountId::new([0xA5; 32]))
-            .expect("the probe admin is is not the renounced sentinel");
+            .expect("the probe holder is not the renounced sentinel");
+        // Non-zero across the whole window, so a misplaced slot shows.
+        cfg.slot.nominate(AccountId::new([0x5A; 32]));
         cfg.is_frozen = true;
         cfg
     }
@@ -617,11 +705,8 @@ mod tests {
 
     #[test]
     fn bootstrap_rejects_default_account_id() {
-        let default_signer = AccountWithMetadata {
-            account: Account::default(),
-            is_authorized: true,
-            account_id: AccountId::default(),
-        };
+        let mut default_signer = acct(0, true);
+        default_signer.account_id = AccountId::default();
         let mut config_account = AccountWithMetadata {
             account: Account::default(),
             is_authorized: false,
@@ -748,5 +833,137 @@ mod tests {
         // Slot untouched
         let decoded = FreezeConfig::from_account(&config_account).unwrap();
         assert!(decoded.assert(&auth).is_ok());
+    }
+
+    fn holder_and_admin() -> (
+        FreezeConfig,
+        AdminConfig,
+        AccountWithMetadata,
+        AccountWithMetadata,
+    ) {
+        let holder = acct(1, true);
+        let admin = acct(9, true);
+        (
+            FreezeConfig::initialize(holder.account_id).unwrap(),
+            AdminConfig::initialize(admin.account_id).unwrap(),
+            holder,
+            admin,
+        )
+    }
+
+    #[test]
+    fn the_holder_nominates_and_the_nominee_accepts() {
+        let (mut cfg, admin_cfg, holder, _) = holder_and_admin();
+        let nominee = acct(2, true);
+        cfg.nominate(Some(&admin_cfg), &holder, nominee.account_id)
+            .unwrap();
+        assert!(cfg.assert(&holder).is_ok(), "nominating moves nothing");
+        assert_eq!(cfg.nominee(), Some(nominee.account_id));
+
+        cfg.accept(&nominee).unwrap();
+        assert!(cfg.assert(&nominee).is_ok());
+        assert_eq!(cfg.nominee(), None);
+    }
+
+    #[test]
+    fn the_admin_nominates_too() {
+        let (mut cfg, admin_cfg, _, admin) = holder_and_admin();
+        let nominee = acct(2, true);
+        cfg.nominate(Some(&admin_cfg), &admin, nominee.account_id)
+            .unwrap();
+        cfg.accept(&nominee).unwrap();
+        assert!(cfg.assert(&nominee).is_ok());
+    }
+
+    #[test]
+    fn anyone_else_cannot_nominate() {
+        let (mut cfg, admin_cfg, _, _) = holder_and_admin();
+        assert_eq!(
+            cfg.nominate(Some(&admin_cfg), &acct(3, true), AccountId::new([2; 32])),
+            Err(FreezeError::NotAdminOrFreezeAuthority)
+        );
+    }
+
+    #[test]
+    fn a_vacant_slot_takes_a_nominee_from_the_admin_only() {
+        let (mut cfg, admin_cfg, holder, admin) = holder_and_admin();
+        cfg.renounce(Some(&admin_cfg), &holder).unwrap();
+        assert_eq!(
+            cfg.nominate(Some(&admin_cfg), &holder, AccountId::new([2; 32])),
+            Err(FreezeError::NotAdminOrFreezeAuthority)
+        );
+        let nominee = acct(2, true);
+        cfg.nominate(Some(&admin_cfg), &admin, nominee.account_id)
+            .unwrap();
+        cfg.accept(&nominee).unwrap();
+        assert!(cfg.assert(&nominee).is_ok());
+    }
+
+    #[test]
+    fn accept_by_someone_else_is_refused() {
+        let (mut cfg, admin_cfg, holder, _) = holder_and_admin();
+        cfg.nominate(Some(&admin_cfg), &holder, AccountId::new([2; 32]))
+            .unwrap();
+        assert_eq!(cfg.accept(&acct(3, true)), Err(FreezeError::NotNominee));
+    }
+
+    #[test]
+    fn renounce_clears_the_nomination() {
+        let (mut cfg, admin_cfg, holder, _) = holder_and_admin();
+        let nominee = acct(2, true);
+        cfg.nominate(Some(&admin_cfg), &holder, nominee.account_id)
+            .unwrap();
+        cfg.renounce(Some(&admin_cfg), &holder).unwrap();
+        assert_eq!(cfg.accept(&nominee), Err(FreezeError::NoNomination));
+    }
+
+    #[test]
+    fn a_transfer_clears_a_stale_nomination() {
+        let (mut cfg, admin_cfg, holder, _) = holder_and_admin();
+        let stale = acct(2, true);
+        cfg.nominate(Some(&admin_cfg), &holder, stale.account_id)
+            .unwrap();
+        cfg.transfer(FreezeCandidate::Signer, &acct(3, true))
+            .unwrap();
+        assert_eq!(cfg.accept(&stale), Err(FreezeError::NoNomination));
+    }
+
+    #[test]
+    fn fixed_size_matches_the_encoding() {
+        let (mut cfg, admin_cfg, holder, _) = holder_and_admin();
+        cfg.nominate(Some(&admin_cfg), &holder, AccountId::new([2; 32]))
+            .unwrap();
+        assert_eq!(
+            cfg.encode().unwrap().len(),
+            <FreezeConfig as spel_framework::FixedBorshSize>::SIZE
+        );
+    }
+
+    const OURS: ProgramId = [7; 8];
+
+    fn config_owned_by(program_owner: ProgramId) -> AccountWithMetadata {
+        let mut config_account = acct(9, false);
+        FreezeConfig::bootstrap(&mut config_account, FreezeCandidate::Signer, &acct(1, true))
+            .unwrap();
+        config_account.account.program_owner = program_owner;
+        config_account
+    }
+
+    #[test]
+    fn from_owned_account_reads_a_config_the_program_owns() {
+        let cfg = FreezeConfig::from_owned_account(&config_owned_by(OURS), OURS).unwrap();
+        assert!(cfg.assert(&acct(1, true)).is_ok());
+    }
+
+    #[test]
+    fn from_owned_account_refuses_a_config_another_program_owns() {
+        assert_eq!(
+            FreezeConfig::from_owned_account(&config_owned_by([8; 8]), OURS),
+            Err(FreezeError::ConfigNotOwned)
+        );
+        assert_eq!(
+            FreezeConfig::from_owned_account_at(&config_owned_by([8; 8]), 0, OURS),
+            Err(FreezeError::ConfigNotOwned)
+        );
     }
 }

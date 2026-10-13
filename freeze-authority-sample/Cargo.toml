@@ -10,10 +10,10 @@ workspace = true
 [dependencies]
 borsh = { version = "1", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
-spel-framework = { git = "https://github.com/logos-co/spel.git", rev = "d0bb659048c3fc6533f51c69e9f7f12382af6dd2" }
+spel-framework = { git = "https://github.com/logos-co/spel.git", tag = "v0.7.0" }
 nssa_core = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", tag = "v0.2.4", package = "lee_core" }
-admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", tag = "v0.1.4" }
+admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", tag = "v0.2.0" }
 freeze-authority = { path = "../freeze-authority" }
 
 [dev-dependencies]
-spel-framework-core = { git = "https://github.com/logos-co/spel.git", rev = "d0bb659048c3fc6533f51c69e9f7f12382af6dd2", features = ["idl-gen"] }
+spel-framework-core = { git = "https://github.com/logos-co/spel.git", tag = "v0.7.0", features = ["idl-gen"] }

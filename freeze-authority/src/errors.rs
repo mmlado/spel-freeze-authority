@@ -8,9 +8,9 @@ use admin_authority::AdminError;
 use authority::AuthorityError;
 use spel_framework::prelude::*;
 
-/// Errors returned by `freeze-authority` methods. Mapped to
-/// `SpelError::Unauthorized` at the SPEL boundary so the lib stays
-/// independent of the framework's error surface.
+/// Errors returned by `freeze-authority` methods. Each maps to
+/// `SpelError::Custom` with a stable code from [`FreezeError::code`], which
+/// LEZ reports as program error `6000 + code`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FreezeError {
     /// Config PDA data is empty; `freeze_initialize` has not been called.
@@ -57,6 +57,48 @@ pub enum FreezeError {
     /// the account's data. Layout error: the declared offset and the
     /// account's actual size disagree.
     SlotOutOfBounds,
+    /// A `Signer` transfer target is owned by no program. LEZ would
+    /// strand it after one transaction. Run `wallet auth-transfer init` on
+    /// the key first.
+    UnownedSigner,
+    /// `freeze_authority_accept` was called with no nominee.
+    NoNomination,
+    /// The signer of `freeze_authority_accept` is not the nominee.
+    NotNominee,
+    /// The config account is not owned by the program reading it.
+    ConfigNotOwned,
+}
+
+impl FreezeError {
+    /// The stable code of this error, in the 2xx block.
+    pub const fn code(&self) -> u32 {
+        match self {
+            FreezeError::NotInitialized => 201,
+            FreezeError::AlreadyInitialized => 202,
+            FreezeError::InvalidCandidate => 203,
+            FreezeError::UndeployedPda => 204,
+            FreezeError::CandidateMismatch => 205,
+            FreezeError::NotFreezeAuthority => 206,
+            FreezeError::NotAdmin => 207,
+            FreezeError::NotAdminOrFreezeAuthority => 208,
+            FreezeError::MissingSignature => 209,
+            FreezeError::Renounced => 210,
+            FreezeError::AlreadyFrozen => 211,
+            FreezeError::NotFrozen => 212,
+            FreezeError::AccountAlreadyFrozen => 213,
+            FreezeError::AccountNotFrozen => 214,
+            FreezeError::EncodingFailed => 215,
+            FreezeError::DecodingFailed => 216,
+            FreezeError::Frozen => 217,
+            FreezeError::AccountFrozen => 218,
+            FreezeError::AccountDataTooLarge => 219,
+            FreezeError::SlotOutOfBounds => 220,
+            FreezeError::UnownedSigner => 221,
+            FreezeError::NoNomination => 222,
+            FreezeError::NotNominee => 223,
+            FreezeError::ConfigNotOwned => 224,
+        }
+    }
 }
 
 impl core::fmt::Display for FreezeError {
@@ -88,15 +130,17 @@ impl core::fmt::Display for FreezeError {
                 write!(f, "FreezeConfig too large for account data")
             }
             FreezeError::SlotOutOfBounds => write!(f, "embedded slot window out of bounds"),
+            FreezeError::UnownedSigner => write!(f, "freeze authority key is owned by no program"),
+            FreezeError::NoNomination => write!(f, "no freeze authority nominee to accept"),
+            FreezeError::NotNominee => write!(f, "signer is not the freeze authority nominee"),
+            FreezeError::ConfigNotOwned => write!(f, "freeze config is not owned by this program"),
         }
     }
 }
 
 impl From<FreezeError> for SpelError {
     fn from(e: FreezeError) -> Self {
-        SpelError::Unauthorized {
-            message: e.to_string(),
-        }
+        SpelError::custom(e.code(), e.to_string())
     }
 }
 
@@ -110,6 +154,9 @@ impl From<AuthorityError> for FreezeError {
             AuthorityError::Renounced => FreezeError::Renounced,
             AuthorityError::MissingSignature => FreezeError::MissingSignature,
             AuthorityError::SlotOutOfBounds => FreezeError::SlotOutOfBounds,
+            AuthorityError::UnownedSigner => FreezeError::UnownedSigner,
+            AuthorityError::NoNomination => FreezeError::NoNomination,
+            AuthorityError::NotNominee => FreezeError::NotNominee,
         }
     }
 }
@@ -128,6 +175,11 @@ impl From<AdminError> for FreezeError {
             AdminError::DecodingFailed => FreezeError::DecodingFailed,
             AdminError::AccountDataTooLarge => FreezeError::AccountDataTooLarge,
             AdminError::SlotOutOfBounds => FreezeError::SlotOutOfBounds,
+            AdminError::UnownedSigner => FreezeError::UnownedSigner,
+            AdminError::NoNomination => FreezeError::NoNomination,
+            AdminError::NotNominee => FreezeError::NotNominee,
+            AdminError::NotGenesisAdmin => FreezeError::NotAdmin,
+            AdminError::ConfigNotOwned => FreezeError::ConfigNotOwned,
         }
     }
 }
@@ -207,25 +259,51 @@ mod test {
         );
     }
 
+    // Codes are API: clients branch on them, so a renumbering must fail here.
     #[test]
-    fn freeze_error_maps_to_unauthorized() {
-        let spel: SpelError = FreezeError::NotAdmin.into();
-        match spel {
-            SpelError::Unauthorized { message } => {
-                assert_eq!(message, "signer is not the current admin");
-            }
-            other => panic!("expected Unauthorized, got {other:?}"),
+    fn codes_are_stable() {
+        use FreezeError::*;
+        let pinned = [
+            (NotInitialized, 201),
+            (AlreadyInitialized, 202),
+            (InvalidCandidate, 203),
+            (UndeployedPda, 204),
+            (CandidateMismatch, 205),
+            (NotFreezeAuthority, 206),
+            (NotAdmin, 207),
+            (NotAdminOrFreezeAuthority, 208),
+            (MissingSignature, 209),
+            (Renounced, 210),
+            (AlreadyFrozen, 211),
+            (NotFrozen, 212),
+            (AccountAlreadyFrozen, 213),
+            (AccountNotFrozen, 214),
+            (EncodingFailed, 215),
+            (DecodingFailed, 216),
+            (Frozen, 217),
+            (AccountFrozen, 218),
+            (AccountDataTooLarge, 219),
+            (SlotOutOfBounds, 220),
+            (UnownedSigner, 221),
+            (NoNomination, 222),
+            (NotNominee, 223),
+            (ConfigNotOwned, 224),
+        ];
+        for (err, code) in pinned {
+            assert_eq!(err.code(), code, "{err:?}");
         }
     }
 
     #[test]
-    fn freeze_error_renounced_maps_to_unauthorized_with_message() {
-        let spel: SpelError = FreezeError::Renounced.into();
+    fn spel_error_carries_the_code_and_the_message() {
+        let spel: SpelError = FreezeError::Frozen.into();
+        assert_eq!(spel.error_code(), 6217);
         match spel {
-            SpelError::Unauthorized { message } => {
-                assert_eq!(message, "freeze authority renounced");
+            SpelError::Custom { code, message } => {
+                assert_eq!(code, 217);
+                assert_eq!(message, "program is frozen");
             }
-            other => panic!("expected Unauthorized, got {other:?}"),
+            other => panic!("expected Custom, got {other:?}"),
         }
     }
 }

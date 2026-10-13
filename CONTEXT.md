@@ -39,15 +39,17 @@ Accepts kwargs `freeze_config`, `freeze_account`, and `caller` — one per injec
 Instruction-level opt-out for `#[freeze_authority(auto)]` mode. Suppresses the auto-wrap for one consumer instruction. No-op inside manual mode. Also used inside `freeze-authority/src/lib.rs` on six management instructions to self-declare them exempt — the five F3 carve-outs plus `freeze_initialize`, which runs before `freeze_config` exists so the gate has nothing to read. The framework hook reads `self_exempt_marker = "freeze_exempt"` from Cargo metadata and skips any fn carrying the attribute. Only `freeze_program` is gated.
 
 **Management instructions**:
-Seven library-defined `#[instruction]` fns added via `#[freeze_authority]` discovery. All names prefixed with `freeze_`. Verb-pair form (no boolean toggles):
+Nine library-defined `#[instruction]` fns added via `#[freeze_authority]` discovery. All names prefixed with `freeze_`. Verb-pair form (no boolean toggles):
 
 1. `freeze_initialize`
 2. `freeze_program` — apply program-wide freeze
 3. `freeze_program_release` — release program-wide freeze
 4. `freeze_authority_transfer` — transfer the freeze authority slot
-5. `freeze_authority_renounce` — vacates the freeze authority slot (recoverable by admin per ADR-0007)
-6. `freeze_account(target)` — apply per-account freeze on `target`
-7. `freeze_account_release(target)` — release per-account freeze on `target`
+5. `freeze_authority_nominate` — name a Freeze nominee, by the holder or the admin (ADR-0013)
+6. `freeze_authority_accept` — the Freeze nominee takes the slot
+7. `freeze_authority_renounce` — vacates the freeze authority slot (recoverable by admin per ADR-0007)
+8. `freeze_account(target)` — apply per-account freeze on `target`
+9. `freeze_account_release(target)` — release per-account freeze on `target`
 
 Source lives in [freeze-authority/src/lib.rs](https://github.com/mmlado/spel-freeze-authority/blob/main/freeze-authority/src/lib.rs); framework emits cross-crate dispatch into the consumer's binary. Deviation from proposal: proposal listed 5 instructions with `set_frozen(bool)`, `set_freeze_authority`, `revoke_freeze_authority`, `freeze_account(target, bool)`. Renamed for admin-authority alignment (verb-style, no booleans, no "revoke" — see [admin-authority CONTEXT](https://github.com/mmlado/spel-admin-authority/blob/main/CONTEXT.md)'s _avoid revoke_ rule) and uniform `freeze_` prefix.
 _Avoid_: `set_frozen`, `set_freeze_authority`, `revoke_freeze_authority`, `freeze_account(_, bool)`.
@@ -58,6 +60,10 @@ _Avoid_: `set_frozen`, `set_freeze_authority`, `revoke_freeze_authority`, `freez
 Superseded: this used to be a local duplicate of `admin_authority::AdminCandidate` (same shape, same semantics, kept separate for IDL naming clarity and zero coupling to admin-authority's type evolution). Both admin-authority and freeze-authority now alias the same shared type from the `authority` crate instead, so there is no duplicated validation logic to maintain — IDL naming clarity is preserved by the type alias (`freeze_authority_transfer`'s candidate parameter still shows `FreezeCandidate`), and coupling is to `authority`, a policy-free crate neither library owns state in.
 _See_: [authority CONTEXT](https://github.com/mmlado/spel-authority/blob/main/CONTEXT.md)
 _Avoid_: using a bare `AccountId` arg for transfer (cannot validate key ownership or PDA existence).
+
+**Freeze nominee**:
+An account named to become freeze authority through `freeze_authority_nominate`, by the current freeze authority or by the admin. It is not the freeze authority until it signs `freeze_authority_accept` itself.
+_Avoid_: FreezeCandidate (the one-step transfer claim), pending freezer
 
 **Per-account freeze target**:
 Always the signer of the gated instruction. The proposal allowed an explicit `account = "target"` form for non-signer targets; dropped here for simplicity. Both modes check the signer's per-account freeze PDA — frozen account cannot call gated instructions on this program. A consumer that needs to gate a non-signer target writes the check manually inside their handler body — outside the macro.

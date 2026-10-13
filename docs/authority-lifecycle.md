@@ -107,9 +107,36 @@ Initialized → Renounced
 
 **Edge case — called before `freeze_initialize`:** same as transfer — empty PDA data returns `FreezeError::NotInitialized`.
 
-**Effect:** writes `freeze_authority = AccountId::default()`. NOT terminal per ADR-0007 — admin can re-populate via `freeze_authority_transfer`. `is_frozen` and per-account PDAs are not modified.
+**Effect:** writes `freeze_authority = AccountId::default()` and clears any pending nominee. NOT terminal per ADR-0007: admin can re-populate via `freeze_authority_transfer` or a nomination. `is_frozen` and per-account PDAs are not modified.
 
 **Failure modes:** `FreezeError::NotInitialized`, `FreezeError::NotAdmin` (signer matches neither role), `FreezeError::Renounced`, `FreezeError::MissingSignature`.
+
+#### `freeze_authority_nominate`
+
+```text
+Initialized → Initialized (nominee set)
+Renounced → Renounced (nominee set, admin only)
+```
+
+**Inputs:** `caller: AccountWithMetadata`, the current freeze authority OR the admin (dual path per ADR-0013, the same OR check as `freeze_authority_renounce`), and `new_freeze_authority: [u8; 32]`.
+
+**Effect:** stores the nominee next to the holder, replacing any earlier one from either side. The all-zero id cancels. The holder does not change. Nothing is checked about the nominee: it is a bare id, and a mistyped one can never accept.
+
+**Failure modes:** `FreezeError::NotInitialized`, `FreezeError::NotAdminOrFreezeAuthority`.
+
+#### `freeze_authority_accept`
+
+```text
+Initialized or Renounced (nominee set) → Initialized (new holder)
+```
+
+**Inputs:** `caller: AccountWithMetadata`, the nominee signing for itself, or a PDA nominee signed through its owning program's chained call.
+
+**Validations:** a nominee must be stored, `caller.is_authorized` must be true, `caller.account_id` must equal the nominee, and some program must own the caller's account.
+
+**Effect:** the nominee becomes freeze authority and the nominee field is cleared. Fills a Renounced slot too, the two-step form of the admin's repopulating transfer.
+
+**Failure modes:** `FreezeError::NotInitialized`, `FreezeError::NoNomination`, `FreezeError::MissingSignature`, `FreezeError::NotNominee`, `FreezeError::UnownedSigner`.
 
 ## State machine — program-wide frozen flag
 
@@ -228,7 +255,9 @@ The M1 LEZ rent investigation confirmed that closed-and-reinit cycles are imposs
 
 The `is_authorized` flag on `AccountWithMetadata` is set by LEZ during transaction validation. It is true if and only if the transaction's `WitnessSet` contains a valid signature over the tx body by the AccountId's keypair. Library methods that take a signer check this flag instead of re-implementing signature verification. SPEL's `#[account(signer)]` constraint emits the same check automatically before the handler runs; the library checks again at its own boundary to enforce the invariant defensively.
 
-For `FreezeCandidate::Signer`, `new_freeze_account.is_authorized` must also be true. Without this, an attacker could name an arbitrary AccountId as the new authority. Requiring a co-signature proves the new authority's keyholder consents to the transfer.
+For `FreezeCandidate::Signer`, `new_freeze_account.is_authorized` must also be true. Without this, an attacker could name an arbitrary AccountId as the new authority. Requiring a co-signature proves the new authority's keyholder consents to the transfer. At `freeze_authority_accept` the nominee's own signature is that consent.
+
+A `Signer` that becomes freeze authority, as a transfer target or at `freeze_authority_accept`, must also be owned by some program. On LEZ v0.2.1 to v0.2.4 an account no program owns can sign once and is then rejected in every later transaction, so the library refuses it with `FreezeError::UnownedSigner`. `wallet auth-transfer init` gives a key that owner.
 
 For `FreezeCandidate::Pda`, signatures aren't applicable. PDAs cannot sign. The library proves the candidate by deriving the address from `(program_id, seed)`, checking it matches `new_freeze_account.account_id`, and checking the PDA has been deployed (`account != Account::default()` and `program_owner != DEFAULT_PROGRAM_ID`).
 
@@ -266,11 +295,14 @@ If the consumer wants to commit to "no future freeze authority ever", they shoul
 
 admin-authority's `admin_renounce` is terminal. If a consumer renounces admin before renouncing freeze (or before transferring freeze), the admin-side paths become permanently inert:
 
-| Operation                                  | Status after admin renounce           |
+| Operation                                  | After admin renounce                  |
 | ------------------------------------------ | ------------------------------------- |
-| `freeze_authority_transfer`                | **dead** (requires admin sig)         |
-| `freeze_authority_renounce` (admin path)   | **dead** (requires admin sig)         |
+| `freeze_authority_transfer`                | unreachable (needs the admin's signature) |
+| `freeze_authority_renounce` (admin path)   | unreachable (needs the admin's signature) |
 | `freeze_authority_renounce` (self path)    | **alive** — freeze_authority can exit |
+| `freeze_authority_nominate` (admin path)   | unreachable (needs the admin's signature) |
+| `freeze_authority_nominate` (holder path)  | alive                                 |
+| `freeze_authority_accept`                  | alive                                 |
 | `freeze_program`, `freeze_program_release` | alive                                 |
 | `freeze_account`, `freeze_account_release` | alive                                 |
 
