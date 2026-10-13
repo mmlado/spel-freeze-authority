@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-13
+
 ### Added
 
 - `freeze_authority_nominate` and `freeze_authority_accept` instructions.
@@ -102,7 +104,8 @@ First release.
 - Docs packet: CONTEXT.md vocabulary, account model, authority
   lifecycle, and ADRs.
 
-[Unreleased]: https://github.com/mmlado/spel-freeze-authority/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/mmlado/spel-freeze-authority/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/mmlado/spel-freeze-authority/releases/tag/v0.2.0
 [0.1.5]: https://github.com/mmlado/spel-freeze-authority/releases/tag/v0.1.5
 [0.1.4]: https://github.com/mmlado/spel-freeze-authority/releases/tag/v0.1.4
 [0.1.3]: https://github.com/mmlado/spel-freeze-authority/releases/tag/v0.1.3
