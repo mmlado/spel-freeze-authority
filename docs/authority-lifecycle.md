@@ -44,7 +44,7 @@ The freeze authority slot governs both flags: the authority is the only role tha
 
 **Initialized.** The `freeze_config` PDA exists and `freeze_authority` holds the current authority's `AccountId`. Every freeze-gated instruction (program-wide and per-account) reads this value to authorize `freeze_program`, `freeze_program_release`, `freeze_account`, `freeze_account_release`.
 
-**Renounced.** The `freeze_config` PDA exists but `freeze_authority` is `AccountId::default()`. Per ADR-0007, this is **NOT** a terminal state — admin can re-populate the slot via `freeze_authority_transfer`. While Renounced, all freeze-authority-signed operations (`freeze_program`, `freeze_program_release`, `freeze_account`, `freeze_account_release`) fail because there is no current authority; admin-signed operations (`freeze_authority_transfer` to repopulate, `freeze_authority_renounce` to confirm vacancy, no-op) succeed. `is_frozen` and the per-account PDAs retain whatever values they had at the moment of renounce.
+**Renounced.** The `freeze_config` PDA exists but the holder is `AccountId::default()`. Per ADR-0007, this is **NOT** a terminal state: admin can re-populate the slot via `freeze_authority_transfer`, or nominate a holder who then accepts. While Renounced, all freeze-authority-signed operations (`freeze_program`, `freeze_program_release`, `freeze_account`, `freeze_account_release`) fail because there is no current authority. Admin-signed operations still succeed: `freeze_authority_transfer` and `freeze_authority_nominate` to repopulate, and `freeze_authority_renounce`, which only clears a pending nominee. `is_frozen` and the per-account PDAs retain whatever values they had at the moment of renounce.
 
 ### Transitions
 
@@ -54,22 +54,19 @@ The freeze authority slot governs both flags: the authority is the only role tha
 Uninitialized → Initialized
 ```
 
-**Inputs:** `caller: AccountWithMetadata` (current admin, signing), `new_freeze_account: AccountWithMetadata` (claim subject), `new_freeze_authority: FreezeCandidate`.
+**Inputs:** `caller: AccountWithMetadata` (the current admin, signing).
 
 **Account constraints:** `freeze_config` is `#[account(init, pda = literal("freeze_config"))]`; `admin_config` is `#[account(pda = literal("admin_config"))]` (must already exist — enforces the hard-dep precondition from ADR-0001).
 
 **Authorization:** the admin signature is required per ADR-0006. admin-authority's `#[require_admin]` gate validates `caller` against `admin_config.admin` before the handler body runs. Closes the front-running window between `admin_initialize` and `freeze_initialize` — without this requirement, any third party could win the race and become the freeze authority.
 
-**Resolution:**
+**Resolution:** the admin becomes the first freeze authority. It hands the role on afterwards with `freeze_authority_transfer` or a nomination.
 
-- `FreezeCandidate::Signer`: `freeze_authority` is set to `new_freeze_account.account_id`. The new authority must co-sign the transaction (`is_authorized == true`) to accept the role.
-- `FreezeCandidate::Pda { program_id, seed }`: the library derives the expected PDA address, confirms it matches `new_freeze_account.account_id`, and confirms the PDA is already deployed.
+**Validations:** `admin_config` exists and is not Renounced. `caller` matches the current admin. The `freeze_config` PDA is still `Account::default()`, enforced by `#[account(init)]`.
 
-**Validations:** `admin_config` exists and is not Renounced. `caller` matches the current admin. The `freeze_config` PDA is freshly initialized (enforced by `#[account(init)]`). The resolved authority is not `AccountId::default()`.
+**Initial values written:** holder = `caller`, no nominee, `is_frozen = false`.
 
-**Initial values written:** `freeze_authority = <resolved>`, `is_frozen = false`.
-
-**Failure modes:** `FreezeError::NotAdmin` (admin signer wrong/missing), `FreezeError::Renounced` (admin renounced before freeze ever initialized), `FreezeError::InvalidCandidate`, `FreezeError::UndeployedPda`, `FreezeError::CandidateMismatch`, `FreezeError::AlreadyInitialized` (if `freeze_config` already exists).
+**Failure modes:** from the `#[require_admin]` gate, `AdminError::NotInitialized` (101), `AdminError::Renounced` (102) and `AdminError::NotAdmin` (103). The framework's `#[account(init)]` refuses a second call before the handler runs.
 
 #### `freeze_authority_transfer`
 
@@ -77,17 +74,17 @@ Uninitialized → Initialized
 Initialized → Initialized (new authority)
 ```
 
-**Inputs:** `caller: AccountWithMetadata` (the current admin, signing), `new_freeze_account: AccountWithMetadata`, `new_freeze_authority: FreezeCandidate`.
+**Inputs:** `caller: AccountWithMetadata` (the current admin, signing), `new_account: AccountWithMetadata`, `candidate: FreezeCandidate`.
 
 **Account constraints:** `freeze_config` `#[account(mut)]`; `admin_config` `#[account(pda = literal("admin_config"))]`.
 
-**Validations:** `freeze_config` exists (not Uninitialized). Renounced state is acceptable per ADR-0007 — admin can re-populate. `admin_config` is not Renounced (delegated to `admin_authority::AdminConfig::assert_admin`). `caller` is the current admin per `assert_admin`. `FreezeCandidate::validate_with_account(new_freeze_account)` succeeds.
+**Validations:** `freeze_config` exists (not Uninitialized). Renounced state is acceptable per ADR-0007, so the admin can re-populate. `admin_config` is not Renounced (delegated to `admin_authority::AdminConfig::assert_admin`). `caller` is the current admin per `assert_admin`. `candidate` validates against `new_account`.
 
 **Edge case — called before `freeze_initialize`:** the `freeze_config` PDA does not exist; `account.data` is empty; `FreezeConfig::from_account` returns `FreezeError::NotInitialized`. Caller cannot transfer a freeze authority that was never set.
 
 **Edge case — called over Renounced state:** allowed per ADR-0007. Admin signature required. `freeze_authority` is overwritten with the resolved candidate. Slot transitions Renounced → Initialized.
 
-**Failure modes:** `FreezeError::NotInitialized`, `FreezeError::NotAdmin`, `FreezeError::InvalidCandidate`, `FreezeError::UndeployedPda`, `FreezeError::CandidateMismatch`. (`Renounced` is NOT a failure mode for transfer — it's an acceptable starting state.)
+**Failure modes:** from the admin check, `AdminError::NotInitialized` (101), `AdminError::Renounced` (102) and `AdminError::NotAdmin` (103). From the freeze side, `FreezeError::NotInitialized` (201), `InvalidCandidate` (203), `UndeployedPda` (204), `CandidateMismatch` (205) and `UnownedSigner` (221). A vacant freeze slot is not a failure. It is an accepted starting state.
 
 #### `freeze_authority_renounce`
 
@@ -101,7 +98,7 @@ Initialized → Renounced
 
 **Validations:**
 
-- `freeze_config` must be Initialized (not already Renounced, not Uninitialized).
+- `freeze_config` must be initialized. On a vacant slot only the admin path passes, and the only effect is to clear a pending nominee.
 - `signer.is_authorized` must be true.
 - `signer.account_id == admin_config.admin` OR `signer.account_id == freeze_config.freeze_authority`. If admin has already been Renounced (`admin_config.admin == AccountId::default()`), only the self-renounce path is available.
 
@@ -109,7 +106,7 @@ Initialized → Renounced
 
 **Effect:** writes `freeze_authority = AccountId::default()` and clears any pending nominee. NOT terminal per ADR-0007: admin can re-populate via `freeze_authority_transfer` or a nomination. `is_frozen` and per-account PDAs are not modified.
 
-**Failure modes:** `FreezeError::NotInitialized`, `FreezeError::NotAdmin` (signer matches neither role), `FreezeError::Renounced`, `FreezeError::MissingSignature`.
+**Failure modes:** `FreezeError::NotInitialized` (201), and `FreezeError::NotAdminOrFreezeAuthority` (208) when the signer is neither the admin nor the holder. The framework's signer check refuses an unsigned caller before the handler runs.
 
 #### `freeze_authority_nominate`
 
@@ -289,7 +286,7 @@ Programs that need a temporary stand-down should use `freeze_program_release` in
 
 If the freeze_authority loses their key before renouncing or rotating, the freeze management surface (`freeze_program` / `freeze_program_release` / `freeze_account` / `freeze_account_release`) becomes permanently uncallable from that key. The current `is_frozen` and per-account states persist. Recovery: admin calls `freeze_authority_transfer` to a new authority, then the new authority manages from there. The lost-key case is not a renounce — the slot stays Initialized with the dead key — but the recovery path is identical (admin transfer to a new authority).
 
-If the consumer wants to commit to "no future freeze authority ever", they should simply not call `freeze_initialize`. Once admin is renounced and freeze is vacant, the program reaches the same terminal state without needing a "terminal renounce" capability.
+If the consumer wants to commit to "no future freeze authority ever", they should simply not call `freeze_initialize`. Once admin is renounced and freeze is vacant with no pending nominee, the program reaches the same terminal state without needing a "terminal renounce" capability.
 
 ## Edge case — admin renounced first
 
@@ -308,7 +305,7 @@ admin-authority's `admin_renounce` is terminal. If a consumer renounces admin be
 
 The dual-path renounce (ADR-0004) is what keeps the freeze_authority's exit available. Without it, an admin-first renounce would orphan the freeze slot until the keyholder dies.
 
-Note: after admin is renounced AND freeze_authority self-renounces, the freeze slot is Renounced with no admin to repopulate it. Effectively terminal at the system level, even though ADR-0007 makes Renounced normally recoverable. The recoverability depends on admin being alive. Renouncing admin first is the only way to make the freeze Renounced state permanent — and that requires a consumer choice to renounce admin.
+Note: after admin is renounced and the freeze slot is vacant, no admin is left to repopulate it. The one way back is a nominee the admin named on the vacant slot, who can still accept. To make the vacancy permanent, cancel any nomination before renouncing admin, by nominating the all-zero id or by an admin `freeze_authority_renounce`. Renouncing admin is the consumer choice that makes the vacancy permanent.
 
 ## Edge case — admin renounced before freeze ever initialized
 

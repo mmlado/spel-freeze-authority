@@ -808,9 +808,7 @@ mod tests {
 
     #[test]
     fn freeze_config_write_to_rejects_oversized_data() {
-        // Skipped: needs framework-internal knowledge of Account.data capacity.
-        // FreezeConfig encodes to 33 bytes; can't trigger overflow without
-        // knowing the framework's data cap.
+        // Skipped: overflowing 65 bytes needs the framework's data cap.
     }
 
     #[test]
@@ -963,6 +961,18 @@ mod tests {
         );
         assert_eq!(
             FreezeConfig::from_owned_account_at(&config_owned_by([8; 8]), 0, OURS),
+            Err(FreezeError::ConfigNotOwned)
+        );
+    }
+
+    #[test]
+    fn from_owned_account_at_checks_the_owner_before_the_window() {
+        assert_eq!(
+            FreezeConfig::from_owned_account_at(&config_owned_by(OURS), 64, OURS),
+            Err(FreezeError::SlotOutOfBounds)
+        );
+        assert_eq!(
+            FreezeConfig::from_owned_account_at(&config_owned_by([8; 8]), 64, OURS),
             Err(FreezeError::ConfigNotOwned)
         );
     }

@@ -97,7 +97,7 @@ No version byte. No length prefix. Borsh's `try_from_slice` (which `FreezeConfig
 | Code | Error | Meaning |
 | --- | --- | --- |
 | 201 | `NotInitialized` | empty data in freeze_config |
-| 202 | `AlreadyInitialized` | reinit attempt |
+| 202 | `AlreadyInitialized` | reserved, not raised: the framework's `#[account(init)]` refuses a second `freeze_initialize` |
 | 203 | `InvalidCandidate` | FreezeCandidate validation failed |
 | 204 | `UndeployedPda` | PDA candidate not yet deployed |
 | 205 | `CandidateMismatch` | PDA address doesn't match derivation |
