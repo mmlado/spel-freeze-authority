@@ -53,7 +53,7 @@ pub enum FreezeError {
     AccountFrozen,
     /// Encoded bytes exceed the account's max data length.
     AccountDataTooLarge,
-    /// An embedded-slot window `[offset..offset+32)` does not fit inside
+    /// An embedded-slot window `[offset..offset+65)` does not fit inside
     /// the account's data. Layout error: the declared offset and the
     /// account's actual size disagree.
     SlotOutOfBounds,

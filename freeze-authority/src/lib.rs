@@ -38,8 +38,8 @@ pub use frozen_account::*;
 /// front-running window that would otherwise let a third party become the
 /// freeze authority between `admin_initialize` and `freeze_initialize`.
 ///
-/// `new_freeze_authority` declares the intended authority; `new_freeze_account`
-/// is the chain-state evidence the candidate is real. Re-initialisation is
+/// The admin becomes the first freeze authority and can hand the role on
+/// with `freeze_authority_transfer` or a nomination. Re-initialisation is
 /// rejected automatically by `#[account(init)]`.
 #[require_admin]
 #[instruction]
@@ -282,10 +282,6 @@ mod tests {
     use super::*;
     use crate::test_utils::*;
 
-    // Step-3 gate tests. Red until `require_not_frozen` parses the
-    // `offset` int kwarg; they pin the target behavior: one prologue
-    // shape, `from_account_at(&cfg, offset)`, offset defaulting to 0.
-
     fn embedded_config_account(offset: usize, cfg: &FreezeConfig) -> AccountWithMetadata {
         let mut data = vec![0xAA; offset]; // consumer prefix bytes
         data.extend(borsh::to_vec(cfg).unwrap()); // slot + flag window
@@ -365,73 +361,87 @@ mod tests {
         );
     }
 
-    // Shared-account fixture: a consumer prefix, the admin window, then the freeze window.
     const SHARED_ADMIN_AT: usize = 32;
     const SHARED_FREEZE_AT: usize =
         SHARED_ADMIN_AT + <AdminConfig as spel_framework::FixedBorshSize>::SIZE;
 
-    #[test]
-    fn renounce_shared_account_emits_single_post_state() {
-        // The same-account cell, called exactly as the dispatcher will
-        // call it after the framework merge: one consumer account cloned
-        // into both role positions, offsets baked as literals. LEZ
-        // accepts exactly one post-state per transaction account, so the
-        // output must collapse the two copies to one entry.
-        let caller = acct(1, true); // freeze holder signs
+    fn shared_account(admin: AccountId, holder: AccountId) -> AccountWithMetadata {
         let mut data = vec![0xAA; SHARED_ADMIN_AT];
-        let admin_cfg = AdminConfig::initialize(AccountId::new([2; 32])).unwrap();
-        data.extend(admin_cfg.encode().unwrap());
-        let freeze_cfg = FreezeConfig::initialize(caller.account_id).unwrap();
-        data.extend(borsh::to_vec(&freeze_cfg).unwrap());
-        let shared = AccountWithMetadata {
+        data.extend(AdminConfig::initialize(admin).unwrap().encode().unwrap());
+        data.extend(borsh::to_vec(&FreezeConfig::initialize(holder).unwrap()).unwrap());
+        AccountWithMetadata {
             account: Account {
                 data: data.try_into().unwrap(),
                 ..Account::default()
             },
             is_authorized: false,
             account_id: AccountId::new([9; 32]),
-        };
+        }
+    }
+
+    // LEZ takes one post-state per transaction account, so the kept one must carry the write.
+    fn kept_freeze_config(out: &SpelOutput) -> FreezeConfig {
+        FreezeConfig::decode_at(&out.post_states[0].account().data, SHARED_FREEZE_AT).unwrap()
+    }
+
+    #[test]
+    fn renounce_shared_account_emits_single_post_state() {
+        // The admin signs, so the renounce reads the admin window at admin_offset.
+        let admin = acct(2, true);
+        let holder = acct(1, true);
+        let shared = shared_account(admin.account_id, holder.account_id);
         let out = freeze_authority_renounce(
             shared.clone(),
             shared,
-            caller,
+            admin,
             SHARED_FREEZE_AT,
             SHARED_ADMIN_AT,
         )
         .unwrap();
         assert_eq!(out.post_states.len(), 2);
+        assert_eq!(
+            kept_freeze_config(&out).assert(&holder),
+            Err(FreezeError::Renounced)
+        );
     }
 
     #[test]
     fn transfer_shared_account_emits_single_post_state() {
-        // Same-account cell for the admin-only path: the caller is the
-        // admin read from the shared account's admin window.
-        let caller = acct(2, true); // admin signs
+        let admin = acct(2, true);
         let new_holder = acct(3, true);
-        let mut data = vec![0xAA; SHARED_ADMIN_AT];
-        let admin_cfg = AdminConfig::initialize(caller.account_id).unwrap();
-        data.extend(admin_cfg.encode().unwrap());
-        let freeze_cfg = FreezeConfig::initialize(AccountId::new([1; 32])).unwrap();
-        data.extend(borsh::to_vec(&freeze_cfg).unwrap());
-        let shared = AccountWithMetadata {
-            account: Account {
-                data: data.try_into().unwrap(),
-                ..Account::default()
-            },
-            is_authorized: false,
-            account_id: AccountId::new([9; 32]),
-        };
+        let shared = shared_account(admin.account_id, AccountId::new([1; 32]));
         let out = freeze_authority_transfer(
             shared.clone(),
             shared,
-            caller,
-            new_holder,
+            admin,
+            new_holder.clone(),
             FreezeCandidate::Signer,
             SHARED_FREEZE_AT,
             SHARED_ADMIN_AT,
         )
         .unwrap();
         assert_eq!(out.post_states.len(), 3);
+        assert!(kept_freeze_config(&out).assert(&new_holder).is_ok());
+    }
+
+    #[test]
+    fn nominate_shared_account_emits_single_post_state() {
+        let holder = acct(1, true);
+        let shared = shared_account(AccountId::new([2; 32]), holder.account_id);
+        let out = freeze_authority_nominate(
+            shared.clone(),
+            shared,
+            holder,
+            [4; 32],
+            SHARED_FREEZE_AT,
+            SHARED_ADMIN_AT,
+        )
+        .unwrap();
+        assert_eq!(out.post_states.len(), 2);
+        assert_eq!(
+            kept_freeze_config(&out).nominee(),
+            Some(AccountId::new([4; 32]))
+        );
     }
 
     #[test]

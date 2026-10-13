@@ -14,6 +14,8 @@ Add `#[freeze_authority]` to a `#[lez_program]` module and the library contribut
 
 Consumers can name their own params freely. A gated instruction with `#[account(signer)] owner`, `#[account(pda = literal("freeze_config"))] my_cfg`, and `#[account(pda = [literal("frozen"), account("owner")])] my_frozen` reuses all three instead of getting duplicates injected — the framework detects each by role (signer, single-literal PDA, compound-seed PDA) and skips the redundant inject. See [ADR-0010](docs/adr/0010-wrapper-args-are-inject-account-names.md).
 
+A declared gate account keeps only the constraints written on it. The gate trusts the `freeze_config` and `freeze_account` accounts it gets, so each declared one needs its `pda` constraint, as in the example above. In embedded mode the same holds for the embedding account. Without it a caller can pass an account that reads as unfrozen, and the gate passes.
+
 The freeze authority lifecycle is governed by the admin from [spel-admin-authority](https://github.com/mmlado/spel-admin-authority) (RFP-001). The dependency is hard: `freeze_initialize` requires the admin's signature. Consumer programs must list both `freeze-authority` and `admin-authority` as direct dependencies. The framework discovers extensions in direct dependencies only, never transitively.
 
 Since M2.5 the freeze state can live inside one of the consumer's own accounts instead of a dedicated PDA, sharing that account with the consumer's state and the admin slot. See the embedded mode section below.
@@ -58,7 +60,7 @@ Nothing moves until the nominee accepts, so a mistyped id only costs a second no
 
 Every `FreezeError` reaches the client as `SpelError::Custom` with a stable code in the 2xx block, reported by LEZ as program error `6000 + code`. Admin checks inside freeze instructions report admin-authority's 1xx codes. The full table is in [docs/account-model.md](docs/account-model.md#errors), see [ADR-0014](docs/adr/0014-stable-error-codes.md).
 
-Plain Rust that reads the freeze config without a PDA constraint pinning it to the program should use `FreezeConfig::from_owned_account` or `from_owned_account_at`, which refuse an account another program owns (`ConfigNotOwned`).
+Plain Rust that reads the freeze config without a PDA constraint pinning it to the program should use `FreezeConfig::from_owned_account` or `from_owned_account_at`, which refuse an account another program owns (`ConfigNotOwned`). They check the owner, not the address, so a `pda` constraint is still the stronger pin.
 
 ## Embedded mode
 
@@ -104,7 +106,7 @@ Instruction data is unchanged by the gates in both modes. The 132 byte data on `
 
 ## Workspace
 
-- `freeze-authority` is the library crate with the seven management instructions and the on-chain state types.
+- `freeze-authority` is the library crate with the nine management instructions and the on-chain state types.
 - `freeze-authority-macros` holds the proc-macro attributes.
 - `freeze-authority-sample` is a consumer program using auto mode.
 - `freeze-authority-sample-manual` is a consumer program using manual mode.
@@ -137,7 +139,7 @@ Bumping any of these requires updating the pin in all Cargo.toml files that refe
 
 Semantic versioning covers five surfaces: the public Rust API, the attribute names (`#[freeze_authority]`, `#[freeze_initialize]`, `#[freeze_slot]`, `#[require_not_frozen]`, `#[freeze_exempt]`) with their argument grammar, the `[package.metadata.spel]` contract this crate declares including the wrap and bound-arg entries, `FreezeConfig`'s 65-byte borsh encoding (holder, nominee, frozen flag), an on-chain wire format, and the cross-marker offset contract peers read admin state through. While the version is 0.x, a minor bump may change any of them, and each such change is called out in the changelog.
 
-The `spel-framework` dependency pins a fork revision for now. Version 1.0.0 lands when the extension mechanism reaches an upstream release ([logos-co/spel#257](https://github.com/logos-co/spel/pull/257)) and the pin moves to it.
+The `spel-framework` dependency pins the upstream `v0.7.0` tag. The crate stays at 0.x while SPEL does, since SPEL types are part of its public API.
 
 ## Support
 
