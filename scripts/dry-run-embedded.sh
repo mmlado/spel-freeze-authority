@@ -2,7 +2,7 @@
 # Dry-run the embedded sample's instructions via the SPEL CLI.
 #
 # Both authority slots live inside the consumer's program_config account:
-# admin at byte offset 32, freeze at 64. Neither initializer exists. The
+# admin at byte offset 32, freeze at 96. Neither initializer exists. The
 # admin slot is born initialized by the sample's own initialize, the
 # freeze slot is born vacant until the admin appoints a holder. The
 # management instructions of both extensions resolve the shared embedding
@@ -57,6 +57,10 @@ run freeze-account --caller "$HOLDER" --target "$TARGET"
 run freeze-account-release --caller "$HOLDER" --target "$TARGET"
 run freeze-authority-renounce --caller "$HOLDER"
 run admin-renounce --caller "$CALLER"
+run admin-nominate --caller "$CALLER" --new-admin "$NEW_ACCOUNT"
+run admin-accept --caller "$NEW_ACCOUNT"
+run freeze-authority-nominate --caller "$CALLER" --new-freeze-authority "$HOLDER"
+run freeze-authority-accept --caller "$HOLDER"
 
 echo
 echo "Done."

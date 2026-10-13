@@ -89,53 +89,6 @@ pub fn freeze_authority_transfer(
     Ok(SpelOutput::execute(accounts, vec![]))
 }
 
-/// Names `new_freeze_authority` to take over as freeze authority.
-///
-/// Callable by the current freeze authority or by the admin, the dual path
-/// of `freeze_authority_renounce` (ADR-0013). Nothing moves until the
-/// nominee signs `freeze_authority_accept`. A later nomination replaces an
-/// earlier one, and the all-zero id cancels. F3 carve-out: callable while
-/// frozen.
-#[instruction]
-#[freeze_exempt]
-pub fn freeze_authority_nominate(
-    #[account(pda = literal("admin_config"))] admin_config: AccountWithMetadata,
-    #[account(mut, pda = literal("freeze_config"))] mut freeze_config: AccountWithMetadata,
-    #[account(signer)] caller: AccountWithMetadata,
-    new_freeze_authority: [u8; 32],
-    offset: usize,
-    admin_offset: usize,
-) -> SpelResult {
-    let admin = AdminConfig::from_account_at(&admin_config, admin_offset).ok();
-    FreezeConfig::perform_nominate_at(
-        admin.as_ref(),
-        &mut freeze_config,
-        offset,
-        &caller,
-        AccountId::new(new_freeze_authority),
-    )?;
-    let mut accounts = post_state_pair(admin_config, freeze_config);
-    accounts.push(caller.account);
-    Ok(SpelOutput::execute(accounts, vec![]))
-}
-
-/// Makes the nominee the freeze authority. The nominee signs for itself. A
-/// PDA nominee signs through a chained call from its owning program that
-/// passes the PDA's seeds. F3 carve-out: callable while frozen.
-#[instruction]
-#[freeze_exempt]
-pub fn freeze_authority_accept(
-    #[account(mut, pda = literal("freeze_config"))] mut freeze_config: AccountWithMetadata,
-    #[account(signer)] caller: AccountWithMetadata,
-    offset: usize,
-) -> SpelResult {
-    FreezeConfig::perform_accept_at(&mut freeze_config, offset, &caller)?;
-    Ok(SpelOutput::execute(
-        vec![freeze_config.account, caller.account],
-        vec![],
-    ))
-}
-
 /// Vacates the freeze authority slot, zeroing the holder.
 ///
 /// Callable by the current freeze authority, or by the admin when one is
@@ -266,6 +219,53 @@ pub fn freeze_account_release(
     ))
 }
 
+/// Names `new_freeze_authority` to take over as freeze authority.
+///
+/// Callable by the current freeze authority or by the admin, the dual path
+/// of `freeze_authority_renounce` (ADR-0013). Nothing moves until the
+/// nominee signs `freeze_authority_accept`. A later nomination replaces an
+/// earlier one, and the all-zero id cancels. F3 carve-out: callable while
+/// frozen.
+#[instruction]
+#[freeze_exempt]
+pub fn freeze_authority_nominate(
+    #[account(pda = literal("admin_config"))] admin_config: AccountWithMetadata,
+    #[account(mut, pda = literal("freeze_config"))] mut freeze_config: AccountWithMetadata,
+    #[account(signer)] caller: AccountWithMetadata,
+    new_freeze_authority: [u8; 32],
+    offset: usize,
+    admin_offset: usize,
+) -> SpelResult {
+    let admin = AdminConfig::from_account_at(&admin_config, admin_offset).ok();
+    FreezeConfig::perform_nominate_at(
+        admin.as_ref(),
+        &mut freeze_config,
+        offset,
+        &caller,
+        AccountId::new(new_freeze_authority),
+    )?;
+    let mut accounts = post_state_pair(admin_config, freeze_config);
+    accounts.push(caller.account);
+    Ok(SpelOutput::execute(accounts, vec![]))
+}
+
+/// Makes the nominee the freeze authority. The nominee signs for itself. A
+/// PDA nominee signs through a chained call from its owning program that
+/// passes the PDA's seeds. F3 carve-out: callable while frozen.
+#[instruction]
+#[freeze_exempt]
+pub fn freeze_authority_accept(
+    #[account(mut, pda = literal("freeze_config"))] mut freeze_config: AccountWithMetadata,
+    #[account(signer)] caller: AccountWithMetadata,
+    offset: usize,
+) -> SpelResult {
+    FreezeConfig::perform_accept_at(&mut freeze_config, offset, &caller)?;
+    Ok(SpelOutput::execute(
+        vec![freeze_config.account, caller.account],
+        vec![],
+    ))
+}
+
 /// Post-state pair for a dual-role fn: collapses to the written copy
 /// when both roles arrived as copies of one shared embedding account
 /// (LEZ rejects duplicate account ids in the output).
@@ -311,8 +311,9 @@ mod tests {
         frozen.is_frozen = true;
         let cfg = embedded_config_account(32, &frozen);
         let err = gated(cfg, acct(7, false)).unwrap_err();
-        assert!(
-            matches!(err, SpelError::Unauthorized { ref message } if message == "program is frozen")
+        assert_eq!(
+            err.to_string(),
+            SpelError::from(FreezeError::Frozen).to_string()
         );
     }
 
@@ -339,8 +340,9 @@ mod tests {
         frozen.is_frozen = true;
         let cfg = config_account_with(&frozen);
         let err = gated(cfg, acct(7, false)).unwrap_err();
-        assert!(
-            matches!(err, SpelError::Unauthorized { ref message } if message == "program is frozen")
+        assert_eq!(
+            err.to_string(),
+            SpelError::from(FreezeError::Frozen).to_string()
         );
     }
 
@@ -357,8 +359,9 @@ mod tests {
         let unfrozen = FreezeConfig::initialize(AccountId::new([1; 32])).unwrap();
         let cfg = embedded_config_account(32, &unfrozen);
         let err = gated(cfg, per_account_with(true)).unwrap_err();
-        assert!(
-            matches!(err, SpelError::Unauthorized { ref message } if message == "account is frozen")
+        assert_eq!(
+            err.to_string(),
+            SpelError::from(FreezeError::AccountFrozen).to_string()
         );
     }
 
@@ -449,8 +452,9 @@ mod tests {
         let non_admin = acct(2, true);
         let freeze_config = acct(9, false);
         let err = freeze_initialize(admin_config, non_admin, freeze_config).unwrap_err();
-        assert!(
-            matches!(err, SpelError::Unauthorized { ref message } if message.contains("not the current admin"))
+        assert_eq!(
+            err.to_string(),
+            SpelError::from(admin_authority::AdminError::NotAdmin).to_string()
         );
     }
 
@@ -473,8 +477,9 @@ mod tests {
             0,
         )
         .unwrap_err();
-        assert!(
-            matches!(err, SpelError::Unauthorized { ref message } if message.contains("not the current admin"))
+        assert_eq!(
+            err.to_string(),
+            SpelError::from(admin_authority::AdminError::NotAdmin).to_string()
         );
     }
 

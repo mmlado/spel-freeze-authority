@@ -13,14 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `FreezeConfig::nominate`, `accept`, `nominee`, `perform_nominate_at` and `perform_accept_at`.
 - `FreezeError::NoNomination`, `NotNominee` and `UnownedSigner`.
 - `admin_nominate` and `admin_accept` on the auto-wrap exempt list.
+- `FreezeConfig::from_owned_account` and `from_owned_account_at`.
+- `FreezeError::code` and `FreezeError::ConfigNotOwned`.
 
 ### Changed
 
 - Breaking: `FreezeConfig` encodes as 65 bytes, holder at `0..32`, nominee at `32..64`, `is_frozen` at byte 64.
 - Embedded sample: admin at `32..96`, freeze at `96..161`, marker `offset = 96`.
+- Breaking: in a program with both libraries, every freeze instruction's discriminant moves up by two, after `admin_nominate` and `admin_accept`. `freeze_authority_nominate` and `freeze_authority_accept` come after `freeze_account_release`.
 - `freeze_authority_transfer` and `freeze_authority_renounce` clear the nominee.
 - Breaking: `freeze_authority_transfer` and `freeze_authority_accept` refuse a key no program owns.
-- Requires the matching `spel-authority` and `admin-authority` releases.
+- Breaking: `FreezeError` maps to `SpelError::Custom` with codes 201 to 224, no longer `SpelError::Unauthorized`.
+- Pin `admin-authority` to tag `v0.2.0`, `spel-authority` to tag `v0.2.0` and `spel-framework` to tag `v0.7.0`.
 
 ## [0.1.5] - 2026-09-17
 

@@ -108,6 +108,34 @@ impl FreezeConfig {
         Self::decode(&account.account.data)
     }
 
+    /// Loads config from an account the calling program owns. For readers
+    /// whose account is not already pinned to the program by a PDA
+    /// constraint.
+    ///
+    /// Returns `FreezeError::ConfigNotOwned` when `program_id` does not own
+    /// the account, before anything is decoded.
+    pub fn from_owned_account(
+        account: &AccountWithMetadata,
+        program_id: ProgramId,
+    ) -> Result<Self, FreezeError> {
+        if account.account.program_owner != program_id {
+            return Err(FreezeError::ConfigNotOwned);
+        }
+        Self::from_account(account)
+    }
+
+    /// [`FreezeConfig::from_owned_account`] for the window at `offset`.
+    pub fn from_owned_account_at(
+        account: &AccountWithMetadata,
+        offset: usize,
+        program_id: ProgramId,
+    ) -> Result<Self, FreezeError> {
+        if account.account.program_owner != program_id {
+            return Err(FreezeError::ConfigNotOwned);
+        }
+        Self::from_account_at(account, offset)
+    }
+
     /// Loads the config from an account's data at `offset`. Convenience
     /// wrapper over [`FreezeConfig::decode_at`].
     pub fn from_account_at(
@@ -908,6 +936,34 @@ mod tests {
         assert_eq!(
             cfg.encode().unwrap().len(),
             <FreezeConfig as spel_framework::FixedBorshSize>::SIZE
+        );
+    }
+
+    const OURS: ProgramId = [7; 8];
+
+    fn config_owned_by(program_owner: ProgramId) -> AccountWithMetadata {
+        let mut config_account = acct(9, false);
+        FreezeConfig::bootstrap(&mut config_account, FreezeCandidate::Signer, &acct(1, true))
+            .unwrap();
+        config_account.account.program_owner = program_owner;
+        config_account
+    }
+
+    #[test]
+    fn from_owned_account_reads_a_config_the_program_owns() {
+        let cfg = FreezeConfig::from_owned_account(&config_owned_by(OURS), OURS).unwrap();
+        assert!(cfg.assert(&acct(1, true)).is_ok());
+    }
+
+    #[test]
+    fn from_owned_account_refuses_a_config_another_program_owns() {
+        assert_eq!(
+            FreezeConfig::from_owned_account(&config_owned_by([8; 8]), OURS),
+            Err(FreezeError::ConfigNotOwned)
+        );
+        assert_eq!(
+            FreezeConfig::from_owned_account_at(&config_owned_by([8; 8]), 0, OURS),
+            Err(FreezeError::ConfigNotOwned)
         );
     }
 }

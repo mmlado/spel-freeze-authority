@@ -61,11 +61,11 @@ default = 0
 [dependencies]
 borsh = { version = "1", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
-spel-framework = { git = "https://github.com/logos-co/spel.git", rev = "d0bb659048c3fc6533f51c69e9f7f12382af6dd2" }
-admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", tag = "v0.1.4" }
+spel-framework = { git = "https://github.com/logos-co/spel.git", tag = "v0.7.0" }
+admin-authority = { git = "https://github.com/mmlado/spel-admin-authority.git", tag = "v0.2.0" }
 freeze-authority-macros = { path = "../freeze-authority-macros" }
-authority = { git = "https://github.com/mmlado/spel-authority.git", tag = "v0.1.2", package = "spel-authority" }
+authority = { git = "https://github.com/mmlado/spel-authority.git", tag = "v0.2.0", package = "spel-authority" }
 
 [dev-dependencies]
-spel-framework-core = { git = "https://github.com/logos-co/spel.git", rev = "d0bb659048c3fc6533f51c69e9f7f12382af6dd2", features = ["idl-gen"] }
+spel-framework-core = { git = "https://github.com/logos-co/spel.git", tag = "v0.7.0", features = ["idl-gen"] }
 nssa_core = { git = "https://github.com/logos-blockchain/logos-execution-zone.git", tag = "v0.2.4", package = "lee_core" }

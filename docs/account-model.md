@@ -92,39 +92,36 @@ No version byte. No length prefix. Borsh's `try_from_slice` (which `FreezeConfig
 
 ## Errors
 
-Library-level error enum, mapped to `SpelError::Unauthorized` at the SPEL boundary:
+`FreezeError` maps to `SpelError::Custom` with a stable code, which LEZ reports as program error `6000 + code` (ADR-0014). Admin checks inside freeze instructions surface admin-authority's own codes (1xx), because they convert `AdminError` directly.
 
-```rust
-pub enum FreezeError {
-    NotInitialized,             // empty data in freeze_config
-    AlreadyInitialized,         // reinit attempt
-    DecodingFailed,             // Borsh decode failure on non-empty data
-    EncodingFailed,             // Borsh encode failure
-    AccountDataTooLarge,        // write_to exceeded the account's data cap
-    InvalidCandidate,           // FreezeCandidate validation failed
-    UndeployedPda,              // PDA candidate not yet deployed
-    CandidateMismatch,          // PDA address doesn't match derivation
-    NotFreezeAuthority,         // signer != slot.holder()
-    NotAdmin,                   // signer != admin_config.admin
-    NotAdminOrFreezeAuthority,  // dual-path auth: neither matched
-    MissingSignature,           // is_authorized == false
-    Renounced,                  // slot.is_renounced() == true
-    AlreadyFrozen,              // freeze_program when is_frozen already true
-    NotFrozen,                  // freeze_program_release when is_frozen already false
-    AccountAlreadyFrozen,       // freeze_account when target's PDA already true
-    AccountNotFrozen,           // freeze_account_release when target's PDA absent or false
-    Frozen,                     // gate rejection: program is currently frozen
-    AccountFrozen,              // gate rejection: caller's per-account PDA is frozen
-}
+| Code | Error | Meaning |
+| --- | --- | --- |
+| 201 | `NotInitialized` | empty data in freeze_config |
+| 202 | `AlreadyInitialized` | reinit attempt |
+| 203 | `InvalidCandidate` | FreezeCandidate validation failed |
+| 204 | `UndeployedPda` | PDA candidate not yet deployed |
+| 205 | `CandidateMismatch` | PDA address doesn't match derivation |
+| 206 | `NotFreezeAuthority` | signer is not the slot holder |
+| 207 | `NotAdmin` | signer is not the admin |
+| 208 | `NotAdminOrFreezeAuthority` | dual-path auth: neither matched |
+| 209 | `MissingSignature` | is_authorized is false |
+| 210 | `Renounced` | the slot is vacant |
+| 211 | `AlreadyFrozen` | freeze_program when already frozen |
+| 212 | `NotFrozen` | freeze_program_release when not frozen |
+| 213 | `AccountAlreadyFrozen` | freeze_account when the target is already frozen |
+| 214 | `AccountNotFrozen` | freeze_account_release when the target is not frozen |
+| 215 | `EncodingFailed` | Borsh encode failure |
+| 216 | `DecodingFailed` | Borsh decode failure on non-empty data |
+| 217 | `Frozen` | gate rejection: program is frozen |
+| 218 | `AccountFrozen` | gate rejection: caller's per-account PDA is frozen |
+| 219 | `AccountDataTooLarge` | write exceeded the account's data cap |
+| 220 | `SlotOutOfBounds` | embedded window does not fit the account |
+| 221 | `UnownedSigner` | a Signer that would become holder is owned by no program |
+| 222 | `NoNomination` | accept with no nominee |
+| 223 | `NotNominee` | accept by someone other than the nominee |
+| 224 | `ConfigNotOwned` | from_owned_account on an account another program owns |
 
-impl From<FreezeError> for SpelError {
-    fn from(e: FreezeError) -> Self {
-        SpelError::Unauthorized { message: e.to_string() }
-    }
-}
-```
-
-Every variant maps to `SpelError::Unauthorized` at the SPEL boundary, with the granular reason preserved in the message string. The library-level enum is what tests and handler-side branching consume. Two families of "frozen" variants intentionally coexist: `Frozen` / `AccountFrozen` fire from the auto-wrap prologue when a gated instruction is called on a frozen program or a frozen account, while `AlreadyFrozen` / `AccountAlreadyFrozen` fire when management ops try to no-op transition an already-in-state value. Distinct errors let callers distinguish "your call was blocked" from "you tried to redo a completed transition".
+Two families of "frozen" variants intentionally coexist: `Frozen` / `AccountFrozen` fire from the auto-wrap prologue when a gated instruction is called on a frozen program or a frozen account, while `AlreadyFrozen` / `AccountAlreadyFrozen` fire when management ops try to no-op transition an already-in-state value. Distinct errors let callers distinguish "your call was blocked" from "you tried to redo a completed transition".
 
 ## PDA address summary
 

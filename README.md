@@ -54,6 +54,12 @@ spel --idl program-idl.json -p program.bin -- \
 
 Nothing moves until the nominee accepts, so a mistyped id only costs a second nomination. A later nomination replaces an earlier one from either side, the all-zero id cancels, and `freeze_authority_transfer` and `freeze_authority_renounce` both clear a pending nominee. With the slot vacant only the admin can nominate. A PDA nominee accepts through its owning program, which chained-calls `freeze_authority_accept` with the PDA's seeds. Keys must be owned by some program (`wallet auth-transfer init`), otherwise the library refuses them with `FreezeError::UnownedSigner`.
 
+## Errors
+
+Every `FreezeError` reaches the client as `SpelError::Custom` with a stable code in the 2xx block, reported by LEZ as program error `6000 + code`. Admin checks inside freeze instructions report admin-authority's 1xx codes. The full table is in [docs/account-model.md](docs/account-model.md#errors), see [ADR-0014](docs/adr/0014-stable-error-codes.md).
+
+Plain Rust that reads the freeze config without a PDA constraint pinning it to the program should use `FreezeConfig::from_owned_account` or `from_owned_account_at`, which refuse an account another program owns (`ConfigNotOwned`).
+
 ## Embedded mode
 
 Declared program-wide on the marker, in lockstep with admin-authority's embedded mode:
@@ -117,13 +123,13 @@ The framework-side extension mechanism (discovery, injection, auto-wrap, cross-m
 
 ## Dependencies
 
-The library and admin dependencies pin release tags, the framework pins an exact rev until it has an upstream release. The committed Cargo.lock resolves every pin to a concrete commit either way. Current baseline:
+Every dependency pins a release tag, and the committed Cargo.lock resolves each to a concrete commit. Current baseline:
 
 | Dep | Repo | Pin |
 | --- | --- | --- |
-| `spel-framework` | [logos-co/spel](https://github.com/logos-co/spel) | rev `d0bb659` (the #276 merge, the standalone `#[instruction]` fix) |
-| `admin-authority` | [mmlado/spel-admin-authority](https://github.com/mmlado/spel-admin-authority) | tag `v0.1.4` |
-| `authority` (`spel-authority`) | [mmlado/spel-authority](https://github.com/mmlado/spel-authority) | tag `v0.1.2` |
+| `spel-framework` | [logos-co/spel](https://github.com/logos-co/spel) | tag `v0.7.0` |
+| `admin-authority` | [mmlado/spel-admin-authority](https://github.com/mmlado/spel-admin-authority) | tag `v0.2.0` |
+| `authority` (`spel-authority`) | [mmlado/spel-authority](https://github.com/mmlado/spel-authority) | tag `v0.2.0` |
 
 Bumping any of these requires updating the pin in all Cargo.toml files that reference the dep (`freeze-authority/`, `freeze-authority-sample/`, `freeze-authority-sample-manual/`, `freeze-authority-sample-embedded/`) plus this table.
 

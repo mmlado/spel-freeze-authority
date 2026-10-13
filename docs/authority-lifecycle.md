@@ -295,12 +295,12 @@ If the consumer wants to commit to "no future freeze authority ever", they shoul
 
 admin-authority's `admin_renounce` is terminal. If a consumer renounces admin before renouncing freeze (or before transferring freeze), the admin-side paths become permanently inert:
 
-| Operation                                  | Status after admin renounce           |
+| Operation                                  | After admin renounce                  |
 | ------------------------------------------ | ------------------------------------- |
-| `freeze_authority_transfer`                | **dead** (requires admin sig)         |
-| `freeze_authority_renounce` (admin path)   | **dead** (requires admin sig)         |
+| `freeze_authority_transfer`                | unreachable (needs the admin's signature) |
+| `freeze_authority_renounce` (admin path)   | unreachable (needs the admin's signature) |
 | `freeze_authority_renounce` (self path)    | **alive** — freeze_authority can exit |
-| `freeze_authority_nominate` (admin path)   | **dead** (requires admin sig)         |
+| `freeze_authority_nominate` (admin path)   | unreachable (needs the admin's signature) |
 | `freeze_authority_nominate` (holder path)  | alive                                 |
 | `freeze_authority_accept`                  | alive                                 |
 | `freeze_program`, `freeze_program_release` | alive                                 |
