@@ -5,10 +5,10 @@
 //!   `FrozenAccountState` (per-account frozen flag).
 //! - The `require_not_frozen` gate macro and the `#[freeze_authority]` /
 //!   `#[freeze_exempt]` extension attributes.
-//! - Seven management instructions covering the RFP-002 admin-supported
-//!   flavor: `freeze_initialize`, `freeze_authority_transfer`,
-//!   `freeze_authority_renounce`, `freeze_program`, `freeze_program_release`,
-//!   `freeze_account`, `freeze_account_release`.
+//! - Nine management instructions: `freeze_initialize`,
+//!   `freeze_authority_transfer`, `freeze_authority_nominate`,
+//!   `freeze_authority_accept`, `freeze_authority_renounce`, `freeze_program`,
+//!   `freeze_program_release`, `freeze_account`, `freeze_account_release`.
 
 #![warn(missing_docs)]
 

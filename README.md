@@ -88,7 +88,7 @@ What changes versus dedicated mode:
 - **No `freeze_initialize`.** The slot is born vacant: the consumer's account-creating instruction writes the struct and the admin appoints the first holder via `freeze_authority_transfer`, the same path that repopulates a renounced slot. There is no front-running window because there is no initializer to race. The admin slot next door is bootstrapped by marking that same instruction with `#[admin_initialize]` from the admin-authority crate.
 - **Slot markers keep the layout honest.** `#[admin_slot]` and `#[freeze_slot]` each derive an offset const and a layout test, and the build fails if a marker position and its declared `offset` disagree.
 - **One account per transaction.** When admin and freeze share the embedding account, the framework merges the two role params into one transaction account and the library emits exactly one post-state for it. The IDL lists the shared account once.
-- **Admin's location travels by marker.** `freeze_authority_transfer` and `freeze_authority_renounce` read admin state at the offset declared on the admin marker. The framework resolves it at the consumer's build (a cross-marker bound arg, [ADR-0012](docs/adr/0012-cross-marker-bound-args.md)) and bakes it into the dispatcher as a literal.
+- **Admin's location travels by marker.** `freeze_authority_transfer`, `freeze_authority_nominate` and `freeze_authority_renounce` read admin state at the offset declared on the admin marker. The framework resolves it at the consumer's build (a cross-marker bound arg, [ADR-0012](docs/adr/0012-cross-marker-bound-args.md)) and bakes it into the dispatcher as a literal.
 - **No offset is ever in a transaction.** All offsets compile into the program. Changing one changes the bytecode, which on LEZ is a different program.
 - **Dedicated mode is untouched.** Internally it is the degenerate case offset 0, and the dedicated dry-run remains byte-identical to the M2 pin.
 
@@ -98,7 +98,7 @@ Design records: [ADR-0011](docs/adr/0011-embedded-freeze-config.md) (embedded fr
 
 Measured from the committed dry-run captures ([docs/dry-run-output.txt](docs/dry-run-output.txt), [docs/dry-run-embedded-output.txt](docs/dry-run-embedded-output.txt)).
 
-Dedicated mode: the auto-wrap gate adds two accounts to a gated transaction, the `freeze_config` PDA (32 byte id in the message, 65 byte pre-state in the witness) and the caller's per-account `freeze_account` PDA (32 byte id, 1 byte pre-state once created). In the captures the gated `update_value` carries 4 accounts while the exempt `read_value` carries 1.
+Dedicated mode: the auto-wrap gate adds two accounts to a gated transaction, the `freeze_config` PDA (32 byte id in the message, a pre-state in the witness carrying 65 bytes of data) and the caller's per-account `freeze_account` PDA (32 byte id, a pre-state carrying 1 byte of data once created). In the captures the gated `update_value` carries 4 accounts while the exempt `read_value` carries 1.
 
 Embedded mode: `freeze_config` rides inside the consumer's own account, so the gate adds one account (`freeze_account`) and the freeze state adds 65 bytes to the embedding account's data. Management instructions that read admin state also drop the dedicated `admin_config` account when admin embeds in the same account: `freeze_authority_renounce` carries 3 accounts in dedicated mode and 2 in embedded mode.
 
@@ -137,7 +137,7 @@ Bumping any of these requires updating the pin in all Cargo.toml files that refe
 
 ## Versioning and stability
 
-Semantic versioning covers five surfaces: the public Rust API, the attribute names (`#[freeze_authority]`, `#[freeze_initialize]`, `#[freeze_slot]`, `#[require_not_frozen]`, `#[freeze_exempt]`) with their argument grammar, the `[package.metadata.spel]` contract this crate declares including the wrap and bound-arg entries, `FreezeConfig`'s 65-byte borsh encoding (holder, nominee, frozen flag), an on-chain wire format, and the cross-marker offset contract peers read admin state through. While the version is 0.x, a minor bump may change any of them, and each such change is called out in the changelog.
+Semantic versioning covers five surfaces: the public Rust API, the attribute names (`#[freeze_authority]`, `#[freeze_slot]`, `#[require_not_frozen]`, `#[freeze_exempt]`) with their argument grammar, the `[package.metadata.spel]` contract this crate declares including the wrap and bound-arg entries, `FreezeConfig`'s 65-byte borsh encoding (holder, nominee, frozen flag), an on-chain wire format, and the cross-marker offset contract peers read admin state through. While the version is 0.x, a minor bump may change any of them, and each such change is called out in the changelog.
 
 The `spel-framework` dependency pins the upstream `v0.7.0` tag. The crate stays at 0.x while SPEL does, since SPEL types are part of its public API.
 

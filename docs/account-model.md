@@ -12,14 +12,14 @@ One per program. Composes the shared `authority::AuthoritySlot` (which holds the
 #[account_type]
 #[derive(BorshSerialize, BorshDeserialize)]
 pub struct FreezeConfig {
-    slot: authority::AuthoritySlot,   // { holder: AccountId }
+    slot: authority::AuthoritySlot,   // { holder: AccountId, nominee: AccountId }
     pub is_frozen: bool,
 }
 ```
 
 The freeze authority `AccountId` lives inside `slot.holder()`, not as a direct field. `AuthoritySlot` is the shared single-holder primitive from `spel-authority`; the same type is embedded in `admin-authority`'s `AdminConfig`.
 
-**PDA derivation:** `(program_id, "freeze_config")`. Single-seed PDA. Address is deterministic per program. Reinit rejected after first `freeze_initialize` call per LEZ's `validate_execution` rule.
+**PDA derivation:** `(program_id, "freeze_config")`. Single-seed PDA. Address is deterministic per program. After the first `freeze_initialize`, the framework's `#[account(init)]` check refuses a second call before the handler runs.
 
 **Encoding:** fixed 65 bytes. `AuthoritySlot` borsh-encodes to two 32-byte `AccountId`s, the holder then the nominee (all zeros when there is none, spel-authority ADR-0002), followed by the 1-byte bool. Borsh layout is direct: no length prefix, no discriminator, no padding. The composition is zero-cost on the wire; on-chain data shape matches a hand-rolled `{ AccountId, AccountId, bool }` byte-for-byte.
 
@@ -68,7 +68,7 @@ pub struct FrozenAccountState {
 The gate prologue emitted by `require_not_frozen` (source lives in `freeze-authority-macros`):
 
 ```rust
-let __cfg = ::freeze_authority::FreezeConfig::from_account(&#freeze_config_ident)?;
+let __cfg = ::freeze_authority::FreezeConfig::from_account_at(&#freeze_config_ident, #offset)?;
 if __cfg.is_frozen { return Err(FreezeError::Frozen.into()); }
 
 let __fa = ::freeze_authority::FrozenAccountState::from_data_or_default(
@@ -79,7 +79,7 @@ if __fa.is_frozen { return Err(FreezeError::AccountFrozen.into()); }
 
 Under ADR-0010's wrapper-arg contract, `#freeze_config_ident` and `#freeze_account_ident` default to `freeze_config` and `freeze_account` when the attr is bare and are overridden by kwargs when the framework's auto-wrap emits resolved names (`#[require_not_frozen(freeze_config = my_cfg, freeze_account = my_frozen, caller = sender)]`).
 
-Distinct variants for gate rejection (`Frozen` / `AccountFrozen`) versus management-op no-op errors (`AlreadyFrozen` / `AccountAlreadyFrozen`). The lenient decoder `from_data_or_default` treats empty bytes as the never-frozen default and errors only on malformed non-empty bytes — the common path for a healthy program stays fast.
+Distinct variants for gate rejection (`Frozen` / `AccountFrozen`). The management-op variants `AlreadyFrozen` and `AccountAlreadyFrozen` are reserved and not raised. The lenient decoder `from_data_or_default` treats empty bytes as the never-frozen default and errors only on malformed non-empty bytes, so the common path for a healthy program stays fast.
 
 ## Borsh encoding summary
 
@@ -106,9 +106,9 @@ No version byte. No length prefix. Borsh's `try_from_slice` (which `FreezeConfig
 | 208 | `NotAdminOrFreezeAuthority` | dual-path auth: neither matched |
 | 209 | `MissingSignature` | is_authorized is false |
 | 210 | `Renounced` | the slot is vacant |
-| 211 | `AlreadyFrozen` | freeze_program when already frozen |
-| 212 | `NotFrozen` | freeze_program_release when not frozen |
-| 213 | `AccountAlreadyFrozen` | freeze_account when the target is already frozen |
+| 211 | `AlreadyFrozen` | reserved, not raised |
+| 212 | `NotFrozen` | reserved, not raised |
+| 213 | `AccountAlreadyFrozen` | reserved, not raised |
 | 214 | `AccountNotFrozen` | freeze_account_release when the target is not frozen |
 | 215 | `EncodingFailed` | Borsh encode failure |
 | 216 | `DecodingFailed` | Borsh decode failure on non-empty data |
@@ -121,7 +121,7 @@ No version byte. No length prefix. Borsh's `try_from_slice` (which `FreezeConfig
 | 223 | `NotNominee` | accept by someone other than the nominee |
 | 224 | `ConfigNotOwned` | from_owned_account on an account another program owns |
 
-Two families of "frozen" variants intentionally coexist: `Frozen` / `AccountFrozen` fire from the auto-wrap prologue when a gated instruction is called on a frozen program or a frozen account, while `AlreadyFrozen` / `AccountAlreadyFrozen` fire when management ops try to no-op transition an already-in-state value. Distinct errors let callers distinguish "your call was blocked" from "you tried to redo a completed transition".
+`Frozen` / `AccountFrozen` fire from the auto-wrap prologue when a gated instruction is called on a frozen program or by a frozen account. `AlreadyFrozen`, `NotFrozen` and `AccountAlreadyFrozen` are reserved and no instruction raises them. Freezing what is already frozen, or releasing an unfrozen program, succeeds and changes nothing. `AccountNotFrozen` does fire, when `freeze_account_release` targets an account that is not frozen.
 
 ## PDA address summary
 

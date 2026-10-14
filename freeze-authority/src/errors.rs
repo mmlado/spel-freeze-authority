@@ -15,13 +15,14 @@ use spel_framework::prelude::*;
 pub enum FreezeError {
     /// Config PDA data is empty; `freeze_initialize` has not been called.
     NotInitialized,
-    /// `freeze_initialize` called on an already-initialised Config PDA.
+    /// Reserved, not raised. `#[account(init)]` refuses a second
+    /// `freeze_initialize`.
     AlreadyInitialized,
     /// `FreezeCandidate::Signer` paired with a default `AccountId`.
     InvalidCandidate,
     /// `FreezeCandidate::Pda` references an undeployed PDA.
     UndeployedPda,
-    /// Candidate's derived address does not match `new_freeze_account.account_id`.
+    /// Candidate's derived address does not match `new_account.account_id`.
     CandidateMismatch,
     /// Signer's `account_id` does not match the stored freeze authority.
     NotFreezeAuthority,
@@ -34,11 +35,12 @@ pub enum FreezeError {
     MissingSignature,
     /// Stored freeze authority is `AccountId::default()`; slot is vacant.
     Renounced,
-    /// `freeze_program` called while `is_frozen` is already `true`.
+    /// Reserved, not raised. The auto-wrap gate rejects `freeze_program`
+    /// on a frozen program with `Frozen`.
     AlreadyFrozen,
-    /// `freeze_program_release` called while `is_frozen` is already `false`.
+    /// Reserved, not raised. Releasing an unfrozen program succeeds without a change.
     NotFrozen,
-    /// `freeze_account(target)` called while target's PDA already stores `true`.
+    /// Reserved, not raised. Freezing a frozen account succeeds without a change.
     AccountAlreadyFrozen,
     /// `freeze_account_release(target)` called while target's PDA is absent
     /// or stores `false`.
