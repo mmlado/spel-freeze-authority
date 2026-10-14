@@ -201,11 +201,6 @@ mod tests {
         assert!(!decoded.is_frozen);
     }
 
-    #[test]
-    fn frozen_account_state_write_to_rejects_oversized_data() {
-        // Same as above — 1-byte encoding can't overflow the data cap.
-    }
-
     // A release must never write to an untouched marker: on LEZ that write
     // would be a default-account modification without a claim.
     #[test]

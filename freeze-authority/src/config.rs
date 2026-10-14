@@ -807,11 +807,6 @@ mod tests {
     }
 
     #[test]
-    fn freeze_config_write_to_rejects_oversized_data() {
-        // Skipped: overflowing 65 bytes needs the framework's data cap.
-    }
-
-    #[test]
     fn perform_renounce_rejects_unauthorized_caller() {
         let auth = acct(1, true); // freeze holder
         let stranger = acct(2, true); // not admin, not holder
